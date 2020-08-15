@@ -98,5 +98,34 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(list(givenParser._add_object_library_stmt.searchString("add_library x OBJECT t)")), [])
         self.assertEqual(list(givenParser._add_object_library_stmt.searchString("add_library_ (x OBJECT t)")), [])
 
+    def test_add_normal_executable_stmt(self):
+        givenString = "add_executable(TabsPls $\{TabsPls_Headers\} $\{TabsPls_Sources\} main.cpp)"
+        givenParser = Parser()
+
+        result = givenParser._add_normal_executable_stmt.parseString(givenString)
+        self.assertEqual(list(result), ["add_executable", "(", "TabsPls", "$\{TabsPls_Headers\} $\{TabsPls_Sources\} main.cpp", ")"])
+
+    def test_add_normal_executable_stmt_with_win32(self):
+        givenString = "add_executable(TabsPls WIN32 $\{TabsPls_Headers\} $\{TabsPls_Sources\} main.cpp)"
+        givenParser = Parser()
+
+        result = givenParser._add_normal_executable_stmt.parseString(givenString)
+        self.assertEqual(list(result), ["add_executable", "(", "TabsPls", "WIN32", "$\{TabsPls_Headers\} $\{TabsPls_Sources\} main.cpp", ")"])
+
+    def test_add_normal_executable_stmt_with_macosx_bundle(self):
+        givenString = "add_executable(TabsPls MACOSX_BUNDLE $\{TabsPls_Headers\} $\{TabsPls_Sources\} main.cpp)"
+        givenParser = Parser()
+
+        result = givenParser._add_normal_executable_stmt.parseString(givenString)
+        self.assertEqual(list(result), ["add_executable", "(", "TabsPls", "MACOSX_BUNDLE", "$\{TabsPls_Headers\} $\{TabsPls_Sources\} main.cpp", ")"])
+    
+    def test_add_executable_stmt_handle_wrong_similar(self):
+        givenParser = Parser()
+
+        self.assertEqual(list(givenParser._add_normal_executable_stmt.searchString("add_executable(x t")), [])
+        self.assertEqual(list(givenParser._add_normal_executable_stmt.searchString("add_executable x t)")), [])
+        self.assertEqual(list(givenParser._add_normal_executable_stmt.searchString("add_executable_ (x t)")), [])
+
+
 if __name__ == '__main__':
      unittest.main()

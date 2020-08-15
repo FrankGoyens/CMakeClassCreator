@@ -40,6 +40,17 @@ class Parser(object):
             + self._library_name + self._object_library_type \
                 + self._content_until_endparen
 
+        self._add_executable_keyword = CaselessLiteral("add_executable")
+        self._add_executable_win32_keyword = Literal("WIN32")
+        self._add_executable_macosx_bundle_keyword = Literal("MACOSX_BUNDLE")
+
+        self._executable_name = self._variable_name
+
+        #https://cmake.org/cmake/help/latest/command/add_executable.html#normal-executables
+        self._add_normal_executable_stmt = self._add_executable_keyword + "(" \
+            + self._executable_name + Optional(self._add_executable_win32_keyword) + Optional(self._add_executable_macosx_bundle_keyword) \
+                + self._content_until_endparen
+
         #Limited only to the things we actually need of course
         self._cmake_stmt = self._set_normal_variable_stmt
         self._cmake_stmt.ignore(self._comment_stmt)
