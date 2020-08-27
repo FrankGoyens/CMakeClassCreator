@@ -53,4 +53,10 @@ class Parser(object):
             + self._executable_name + Optional(self._add_executable_win32_keyword) + Optional(self._add_executable_macosx_bundle_keyword) \
                 + self._cmake_list_content + ")"
 
+        self._scope_specifier_keywords = Literal("PRIVATE") | Literal("PUBLIC") | Literal("Interface")
+        self._target_sources_keyword = Literal("target_sources")
+
+        #https://cmake.org/cmake/help/latest/command/target_sources.html
+        self._target_sources_stmt = self._target_sources_keyword + "(" + self._executable_name + OneOrMore(self._scope_specifier_keywords + self._cmake_list_content) + ")"
+
 

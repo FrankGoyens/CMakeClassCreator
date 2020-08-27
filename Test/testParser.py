@@ -129,6 +129,22 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(list(givenParser._add_normal_executable_stmt.searchString("add_executable x t)")), [])
         self.assertEqual(list(givenParser._add_normal_executable_stmt.searchString("add_executable_ (x t)")), [])
 
+    def test_target_sources_stmt(self):
+        givenParser = Parser()
+
+        givenString = ("target_sources(TabsPls PRIVATE a.cpp b.cpp c.cpp PUBLIC pub_a.cpp pub_b.cpp pub_c.cpp\n"
+                + "INTERFACE interface.hpp)")
+
+        result = givenParser._target_sources_stmt.parseString(givenString)
+        self.assertEqual(list(result), ["target_sources", "(", "TabsPls", "PRIVATE", "a.cpp", "b.cpp", "c.cpp", "PUBLIC", "pub_a.cpp", "pub_b.cpp", "pub_c.cpp", "INTERFACE", "interface.hpp", ")"])
+
+
+    def test_target_sources_stmt_handle_wrong_similar(self):
+        givenParser = Parser()
+
+        self.assertEqual(list(givenParser._target_sources_stmt.searchString("target_sources(TabsPls interface.hpp)")), [])
+        self.assertEqual(list(givenParser._target_sources_stmt.searchString("target_sources(TabsPls PRIVATE interface.hpp")), [])
+        self.assertEqual(list(givenParser._target_sources_stmt.searchString("target_sources_(TabsPls PRIVATE interface.hpp)")), [])
 
 if __name__ == '__main__':
     unittest.main()
