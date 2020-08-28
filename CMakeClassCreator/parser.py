@@ -59,4 +59,6 @@ class Parser(object):
         #https://cmake.org/cmake/help/latest/command/target_sources.html
         self._target_sources_stmt = self._target_sources_keyword + "(" + self._executable_name + OneOrMore(self._scope_specifier_keywords + self._cmake_list_content) + ")"
 
+        self._cmake_stmt = OneOrMore(self._set_normal_variable_stmt | self._add_library_stmt | self._add_object_library_stmt | self._add_normal_executable_stmt | self._target_sources_stmt)
 
+        self._cmake_stmt.ignore(self._set_env_variable_stmt)
