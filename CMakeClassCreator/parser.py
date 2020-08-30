@@ -6,10 +6,11 @@ class Parser(object):
         self._comment_stmt = self._comment_keyword + restOfLine 
 
         self._variable_name = Word(alphas+"_", alphanums+"_")
-        self._variable_use = "${" + self._variable_name + "}"
+        self._variable_use = "${{" + self._variable_name + "}}"
 
+        self._variable_use_in_string_list = self._variable_use | (Literal('"') + self._variable_use + '"')
         self._string_list_item = Word(printables, excludeChars=")")
-        self._cmake_list_content = OneOrMore(dblQuotedString | self._string_list_item | self._variable_use )
+        self._cmake_list_content = OneOrMore(self._variable_use_in_string_list |  dblQuotedString | self._string_list_item)
         self._cmake_list_content.ignore(self._comment_stmt)
 
         self._set_keyword = CaselessLiteral("set")

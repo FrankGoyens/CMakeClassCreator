@@ -5,20 +5,25 @@ class VariableUse(object):
         self.var_name = var_name
 
     def is_same(self, other):
-        return self.var_name == other.var_name
+        return isinstance(other, VariableUse) \
+                and self.var_name == other.var_name
 
 class ListItemString(object):
     def __init__(self, list_item_string):
         self.list_item_string = list_item_string
         
     def is_same(self, other):
-        return self.list_item_string == other.list_item_string
+        return isinstance(other, ListItemString) \
+                and self.list_item_string == other.list_item_string
 
 class CMakeStringList(object):
     def __init__(self, items):
         self.items = items
 
     def is_same(self, other):
+        if not isinstance(other, CMakeStringList):
+            return False
+
         if len(self.items) != len(other.items):
             return False
 
@@ -34,7 +39,8 @@ class SetNormalVariable(object):
         self.cmake_string_list = cmake_string_list
 
     def is_same(self, other):
-        return self.var_name == other.var_name \
+        return isinstance(other, SetNormalVariable) \
+                and self.var_name == other.var_name \
                 and self.cmake_string_list.is_same(other.cmake_string_list)
 
 class Ast(object):
@@ -45,7 +51,7 @@ class Ast(object):
         self._parser = Parser()
 
         self._parser._set_normal_variable_stmt.setParseAction(self._parse_set_normal_variable_action)
-        self._parser._variable_use.setParseAction(self._parse_variable_use_action)
+        self._parser._variable_use_in_string_list.setParseAction(self._parse_variable_use_action)
         self._parser._string_list_item.setParseAction(self._parse_list_item_string_action)
         self._parser._cmake_list_content.setParseAction(self._parse_cmake_string_list_action)
 
