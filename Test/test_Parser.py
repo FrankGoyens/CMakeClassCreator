@@ -28,9 +28,9 @@ class ParserTest(unittest.TestCase):
 
         result = givenParser._set_normal_variable_stmt.parseString(givenString)
         self.assertEqual(list(result), ["set", "(", "var",
-             "${some_other_var}", "cool_class.h", 
+             "${", "some_other_var", "}", "cool_class.h", 
                      '" and tokens between double quotes are not actual tokens: PARENT_SCOPE, )"', 
-                     '"${using_variables_should_work_between_quotes_though}"',
+                     '"', "${", "using_variables_should_work_between_quotes_though", "}", '"',
                      "cool_class.cpp", ")"])
 
     def test_normal_set_stmt_handle_wrong_similar(self):
@@ -48,11 +48,11 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(list(result), ["set", "(", "var", "content", "PARENT_SCOPE", ")"])
 
     def test_set_env_variable_stmt(self):
-        givenString = "set(ENV{{ENV_VAR_NAME} value)"
+        givenString = "set(ENV{ENV_VAR_NAME} value)"
         givenParser = Parser()
 
         result = givenParser._set_env_variable_stmt.parseString(givenString)
-        self.assertEqual(list(result), ["set", "(", "ENV", "{{ENV_VAR_NAME}", "value", ")"])
+        self.assertEqual(list(result), ["set", "(", "ENV", "{ENV_VAR_NAME}", "value", ")"])
     
     def test_add_library_stmt(self):
         givenString = "add_library(TabsPlsLib main.cpp)"
@@ -108,21 +108,21 @@ class ParserTest(unittest.TestCase):
         givenParser = Parser()
 
         result = givenParser._add_normal_executable_stmt.parseString(givenString)
-        self.assertEqual(list(result), ["add_executable", "(", "TabsPls", "${" + "TabsPls_Headers" + "}", "${" + "TabsPls_Sources" + "}", "main.cpp", ")"])
+        self.assertEqual(list(result), ["add_executable", "(", "TabsPls", "${", "TabsPls_Headers", "}", "${",  "TabsPls_Sources", "}", "main.cpp", ")"])
 
     def test_add_normal_executable_stmt_with_win32(self):
         givenString = "add_executable(TabsPls WIN32 ${TabsPls_Headers} ${TabsPls_Sources} main.cpp)"
         givenParser = Parser()
 
         result = givenParser._add_normal_executable_stmt.parseString(givenString)
-        self.assertEqual(list(result), ["add_executable", "(", "TabsPls", "WIN32", "${TabsPls_Headers}", "${TabsPls_Sources}", "main.cpp", ")"])
+        self.assertEqual(list(result), ["add_executable", "(", "TabsPls", "WIN32", "${", "TabsPls_Headers", "}", "${", "TabsPls_Sources", "}", "main.cpp", ")"])
 
     def test_add_normal_executable_stmt_with_macosx_bundle(self):
         givenString = "add_executable(TabsPls MACOSX_BUNDLE ${TabsPls_Headers} ${TabsPls_Sources} main.cpp)"
         givenParser = Parser()
 
         result = givenParser._add_normal_executable_stmt.parseString(givenString)
-        self.assertEqual(list(result), ["add_executable", "(", "TabsPls", "MACOSX_BUNDLE", "${TabsPls_Headers}", "${TabsPls_Sources}", "main.cpp", ")"])
+        self.assertEqual(list(result), ["add_executable", "(", "TabsPls", "MACOSX_BUNDLE", "${", "TabsPls_Headers", "}", "${", "TabsPls_Sources", "}", "main.cpp", ")"])
     
     def test_add_executable_stmt_handle_wrong_similar(self):
         givenParser = Parser()

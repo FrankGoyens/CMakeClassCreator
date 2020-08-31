@@ -1,4 +1,4 @@
-from pyparsing import Word, Literal, CaselessLiteral, Optional, alphas, alphanums, restOfLine, SkipTo, Suppress, dblQuotedString, OneOrMore, printables
+from pyparsing import Word, Literal, CaselessLiteral, Optional, alphas, alphanums, restOfLine, SkipTo, Suppress, dblQuotedString, OneOrMore, printables, Combine, NotAny
 
 class Parser(object):
     def __init__(self):
@@ -6,11 +6,25 @@ class Parser(object):
         self._comment_stmt = self._comment_keyword + restOfLine 
 
         self._variable_name = Word(alphas+"_", alphanums+"_")
-        self._variable_use = "${{" + self._variable_name + "}}"
 
-        self._variable_use_in_string_list = self._variable_use | (Literal('"') + self._variable_use + '"')
+        #'variable use' grammar
+        self._standalone_variable_use = "${" + self._variable_name + "}"
+        self._equivalent_variable_use_in_quotes = Literal('"') + self._standalone_variable_use + '"'
+
+        any_standalone_variable_use = self._standalone_variable_use | self._equivalent_variable_use_in_quotes
+
+        #this is not used to parse into anything meaningful, so they are combined into a single token. This makes this easily managed
+        self._variable_use_to_compose_list_item = Combine(dblQuotedString + any_standalone_variable_use) | \
+                Combine(any_standalone_variable_use + dblQuotedString) | \
+                Combine(printables + any_standalone_variable_use) | \
+                Combine(any_standalone_variable_use + printables)
+
+        variable_use_in_string_list = any_standalone_variable_use | self._variable_use_to_compose_list_item 
+
+        #cmake's 'string list' grammar (used in most declarative cmake statements)
         self._string_list_item = Word(printables, excludeChars=")")
-        self._cmake_list_content = OneOrMore(self._variable_use_in_string_list |  dblQuotedString | self._string_list_item)
+        self._scope_specifier_keywords = Literal("PRIVATE") | Literal("PUBLIC") | Literal("INTERFACE")
+        self._cmake_list_content = OneOrMore(NotAny(self._scope_specifier_keywords) + (variable_use_in_string_list |  dblQuotedString | self._string_list_item))
         self._cmake_list_content.ignore(self._comment_stmt)
 
         self._set_keyword = CaselessLiteral("set")
@@ -28,12 +42,13 @@ class Parser(object):
 
         self._add_library_keyword = CaselessLiteral("add_library")
         self._normal_library_types = Literal("STATIC") | Literal("SHARED") | Literal("MODULE")
+        self._exclude_from_all_flag = Literal("EXCLUDE_FROM_ALL")
         self._library_name = self._variable_name
 
         #https://cmake.org/cmake/help/latest/command/add_library.html#normal-libraries
         self._add_library_stmt = self._add_library_keyword + "(" \
             + self._library_name + Optional(self._normal_library_types) \
-                + Optional(Literal("EXCLUDE_FROM_ALL")) \
+                + Optional(self._exclude_from_all_flag) \
                 + self._cmake_list_content + ")"
 
         self._object_library_type = Literal("OBJECT")
@@ -51,10 +66,9 @@ class Parser(object):
 
         #https://cmake.org/cmake/help/latest/command/add_executable.html#normal-executables
         self._add_normal_executable_stmt = self._add_executable_keyword + "(" \
-            + self._executable_name + Optional(self._add_executable_win32_keyword) + Optional(self._add_executable_macosx_bundle_keyword) \
+            + self._executable_name + Optional(self._add_executable_win32_keyword) + Optional(self._add_executable_macosx_bundle_keyword) + Optional(self._exclude_from_all_flag) \
                 + self._cmake_list_content + ")"
 
-        self._scope_specifier_keywords = Literal("PRIVATE") | Literal("PUBLIC") | Literal("Interface")
         self._target_sources_keyword = Literal("target_sources")
 
         #https://cmake.org/cmake/help/latest/command/target_sources.html
