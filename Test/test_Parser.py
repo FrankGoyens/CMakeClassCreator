@@ -13,16 +13,14 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(list(result), ["#", "This is a comment, here's some garbage 34857039(*&)(**&%*&$%$#`~"])
 
     def test_normal_set_stmt(self):
-        givenStringVarContent = ("\n${some_other_var}\n"
+        givenString = ("set(var\n" 
+            + "${some_other_var}\n"
             + "cool_class.h\n"
             + "# The parser should skip these commented tokens: PARENT_SCOPE, ) \n"
             + '" and tokens between double quotes are not actual tokens: PARENT_SCOPE, )" \n'
             + '"${using_variables_should_work_between_quotes_though}" \n'
-            + "cool_class.cpp")
-
-        givenString = ("set(var"
-            + givenStringVarContent
-            + "\n)")
+            + "cool_class.cpp\n"
+            + ")")
 
         givenParser = Parser()
 
@@ -136,6 +134,21 @@ class ParserTest(unittest.TestCase):
 
         givenString = ("target_sources(TabsPls PRIVATE a.cpp b.cpp c.cpp PUBLIC pub_a.cpp pub_b.cpp pub_c.cpp\n"
                 + "INTERFACE interface.hpp)")
+
+        result = givenParser._target_sources_stmt.parseString(givenString)
+        self.assertEqual(list(result), ["target_sources", "(", "TabsPls", "PRIVATE", "a.cpp", "b.cpp", "c.cpp", "PUBLIC", "pub_a.cpp", "pub_b.cpp", "pub_c.cpp", "INTERFACE", "interface.hpp", ")"])
+
+    def test_target_sources_with_extra_whitespacing_stmt(self):
+        givenParser = Parser()
+
+        givenString = ("target_sources(TabsPls\n"
+            + "PRIVATE\n"
+            + "a.cpp b.cpp c.cpp\n"
+            + "PUBLIC\n"
+            + "pub_a.cpp pub_b.cpp pub_c.cpp\n"
+            + "INTERFACE\n"
+            + "interface.hpp\n"
+            + ")")
 
         result = givenParser._target_sources_stmt.parseString(givenString)
         self.assertEqual(list(result), ["target_sources", "(", "TabsPls", "PRIVATE", "a.cpp", "b.cpp", "c.cpp", "PUBLIC", "pub_a.cpp", "pub_b.cpp", "pub_c.cpp", "INTERFACE", "interface.hpp", ")"])
