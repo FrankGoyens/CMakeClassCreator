@@ -20,10 +20,6 @@ class VariableUseWithLocation(VariableUse, _LocationTrait):
         super().__init__(var_name)
         self.location = location
 
-    def is_same(self, other):
-        return isinstance(other, VariableUse) \
-                and self.var_name == other.var_name
-
     def get_location(self):
         return self.location
 
