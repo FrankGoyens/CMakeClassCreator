@@ -1,4 +1,4 @@
-from pyparsing import Word, Literal, CaselessLiteral, Optional, alphas, alphanums, restOfLine, SkipTo, Suppress, dblQuotedString, OneOrMore, printables, Combine, NotAny
+from pyparsing import *
 
 class Parser(object):
     def __init__(self):
@@ -14,17 +14,21 @@ class Parser(object):
         any_standalone_variable_use = self._standalone_variable_use | self._equivalent_variable_use_in_quotes
 
         #this is not used to parse into anything meaningful, so they are combined into a single token. This makes this easily managed
+        printables_except_rpar = printables.replace(')', '')
         self._variable_use_to_compose_list_item = Combine(dblQuotedString + any_standalone_variable_use) | \
                 Combine(any_standalone_variable_use + dblQuotedString) | \
-                Combine(printables + any_standalone_variable_use) | \
-                Combine(any_standalone_variable_use + printables)
+                Combine(printables_except_rpar + any_standalone_variable_use) | \
+                Combine(any_standalone_variable_use + printables_except_rpar)
 
         variable_use_in_string_list = any_standalone_variable_use | self._variable_use_to_compose_list_item 
-
+        
         #cmake's 'string list' grammar (used in most declarative cmake statements)
-        self._string_list_item = Word(printables, excludeChars=")")
+        self._string_list_item = dblQuotedString | Word(printables_except_rpar) 
         self._scope_specifier_keywords = Literal("PRIVATE") | Literal("PUBLIC") | Literal("INTERFACE")
-        self._cmake_list_content = OneOrMore(NotAny(self._scope_specifier_keywords) + (variable_use_in_string_list |  dblQuotedString | self._string_list_item))
+
+        cmake_any_list_item = NotAny(self._scope_specifier_keywords) + (variable_use_in_string_list | self._string_list_item)
+        explicit_whitespace = White().suppress() #The White().suppress() is added to ensure the match locations consider whitespace, a workaround for this bug: https://github.com/pyparsing/pyparsing/issues/244
+        self._cmake_list_content = ZeroOrMore(cmake_any_list_item + explicit_whitespace) + Optional(cmake_any_list_item)
         self._cmake_list_content.ignore(self._comment_stmt)
 
         self._set_keyword = CaselessLiteral("set")
@@ -32,8 +36,8 @@ class Parser(object):
 
         #https://cmake.org/cmake/help/latest/command/set.html#set-normal-variable 
         self._set_normal_variable_stmt = self._set_keyword + "(" \
-            + self._variable_name \
-                + self._cmake_list_content + Optional(self._parent_scope_keyword) + ")" 
+            + self._variable_name + explicit_whitespace \
+                + self._cmake_list_content + Optional(self._parent_scope_keyword) + ")"
 
         #https://cmake.org/cmake/help/latest/command/set.html#set-environment-variable
         #We need to define this one to be able to ignore it
@@ -47,8 +51,8 @@ class Parser(object):
 
         #https://cmake.org/cmake/help/latest/command/add_library.html#normal-libraries
         self._add_library_stmt = self._add_library_keyword + "(" \
-            + self._library_name + Optional(self._normal_library_types) \
-                + Optional(self._exclude_from_all_flag) \
+            + self._library_name + explicit_whitespace + Optional(self._normal_library_types + explicit_whitespace) \
+                + Optional(self._exclude_from_all_flag + explicit_whitespace) \
                 + self._cmake_list_content + ")"
 
         self._object_library_type = Literal("OBJECT")
@@ -56,7 +60,7 @@ class Parser(object):
         #https://cmake.org/cmake/help/latest/command/add_library.html#object-libraries
         self._add_object_library_stmt = self._add_library_keyword + "(" \
             + self._library_name + self._object_library_type \
-                + self._cmake_list_content + ")"
+                + explicit_whitespace + self._cmake_list_content + ")"
 
         self._add_executable_keyword = CaselessLiteral("add_executable")
         self._add_executable_win32_keyword = Literal("WIN32")
@@ -66,13 +70,13 @@ class Parser(object):
 
         #https://cmake.org/cmake/help/latest/command/add_executable.html#normal-executables
         self._add_normal_executable_stmt = self._add_executable_keyword + "(" \
-            + self._executable_name + Optional(self._add_executable_win32_keyword) + Optional(self._add_executable_macosx_bundle_keyword) + Optional(self._exclude_from_all_flag) \
+            + self._executable_name + explicit_whitespace + Optional(self._add_executable_win32_keyword + explicit_whitespace) + Optional(self._add_executable_macosx_bundle_keyword + explicit_whitespace) + Optional(self._exclude_from_all_flag + explicit_whitespace) \
                 + self._cmake_list_content + ")"
 
         self._target_sources_keyword = Literal("target_sources")
 
         #https://cmake.org/cmake/help/latest/command/target_sources.html
-        self._target_sources_stmt = self._target_sources_keyword + "(" + self._executable_name + OneOrMore(self._scope_specifier_keywords + self._cmake_list_content) + ")"
+        self._target_sources_stmt = self._target_sources_keyword + "(" + self._executable_name + explicit_whitespace + OneOrMore(self._scope_specifier_keywords + explicit_whitespace + self._cmake_list_content) + Optional(explicit_whitespace)+ ")"
 
         self._cmake_stmt = OneOrMore(self._set_normal_variable_stmt | self._add_library_stmt | self._add_object_library_stmt | self._add_normal_executable_stmt | self._target_sources_stmt)
 

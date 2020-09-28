@@ -1,4 +1,10 @@
 from CMakeClassCreator.parser import Parser
+from abc import ABC, abstractmethod
+
+class _LocationTrait(ABC):
+    @abstractmethod
+    def get_location(self):
+        pass
 
 ### AST components ###
 class VariableUse(object):
@@ -9,13 +15,29 @@ class VariableUse(object):
         return isinstance(other, VariableUse) \
                 and self.var_name == other.var_name
 
+class VariableUseWithLocation(VariableUse, _LocationTrait):
+    def __init__(self, var_name, location):
+        super().__init__(var_name)
+        self.location = location
+
+    def get_location(self):
+        return self.location
+
 class ListItemString(object):
     def __init__(self, list_item_string):
         self.list_item_string = list_item_string
         
     def is_same(self, other):
         return isinstance(other, ListItemString) \
-                and self.list_item_string == other.list_item_string
+                and self.list_item_string == other.list_item_string 
+                
+class ListItemStringWithPosition(ListItemString, _LocationTrait):
+    def __init__(self, list_item_string, location):
+        super().__init__(list_item_string)
+        self.location = location
+
+    def get_location(self):
+        return self.location
 
 class CMakeStringList(object):
     def __init__(self, items):
@@ -75,10 +97,9 @@ class TargetSources(object):
                 and self.cmake_string_list.is_same(other.cmake_string_list)
 ### AST components END ###
 
-### Parse actions ###
 def _parse_standalone_variable_use_action(s, loc, toks):
     var_name = toks[1]
-    return VariableUse(var_name)
+    return VariableUseWithLocation(var_name, loc)
 
 def _parse_standalone_variable_use_in_quotes_action(s, loc, toks):
     return toks[1]
@@ -88,10 +109,9 @@ def _parse_variable_use_to_compose_list_item(s, loc, toks):
 
 def _parse_list_item_string_action(s, loc, toks):
     list_item_string = toks[0]
-    return ListItemString(list_item_string)
+    return ListItemStringWithPosition(list_item_string, loc)
 
 def _parse_cmake_string_list_action(s, loc, toks):
-    toks = [item if not isinstance(item, str) else ListItemString(item) for item in toks]
     return CMakeStringList(toks)
 
 def _parse_set_normal_variable_action(s, loc, toks):
@@ -112,11 +132,9 @@ def _parse_add_normal_executable_action(s, loc, toks):
 def _parse_target_sources_action(s, loc, toks):
     target_name = toks[2]
     cmake_string_list = CMakeStringList([])
-    for scoped_cmake_string_list in [tok for tok in toks if isinstance(tok, CMakeStringList)]:
-            cmake_string_list.items += scoped_cmake_string_list.items 
+    for scoped_cmake_string_list in [tok for tok in list(toks) if isinstance(tok, CMakeStringList)]:
+            cmake_string_list.items += list(scoped_cmake_string_list.items) 
     return TargetSources(target_name, cmake_string_list)
-
-### Parse actions END ###
 
 class Ast(object):
     """
