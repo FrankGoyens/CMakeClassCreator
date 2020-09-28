@@ -29,7 +29,7 @@ class _SingleCMakeListAstTrait(ABC):
     def get_cmake_list_ast(self):
         pass
 
-class __SingleCmakeListInserter(_SourceInsertTrait, _SingleCMakeListAstTrait):
+class __SingleCMakeListInserter(_SourceInsertTrait, _SingleCMakeListAstTrait):
     def __init__(self, cmake_string_list):
         self.cmake_string_list = cmake_string_list
 
@@ -40,7 +40,7 @@ class __SingleCmakeListInserter(_SourceInsertTrait, _SingleCMakeListAstTrait):
         position = _get_position_after_last_list_item(self.cmake_string_list)
         return InsertAction(position, " " + source_item)
 
-class _AddLibraryInserter(_TargetNameTrait, __SingleCmakeListInserter):
+class _AddLibraryInserter(_TargetNameTrait, __SingleCMakeListInserter):
     def __init__(self, add_library_ast):
         super().__init__(add_library_ast.cmake_string_list)
         self.add_library_ast = add_library_ast
@@ -48,7 +48,7 @@ class _AddLibraryInserter(_TargetNameTrait, __SingleCmakeListInserter):
     def get_name(self):
         return self.add_library_ast.library_name
 
-class _AddExecutableInserter(_TargetNameTrait, __SingleCmakeListInserter):
+class _AddExecutableInserter(_TargetNameTrait, __SingleCMakeListInserter):
     def __init__(self, add_executable_ast):
         super().__init__(add_executable_ast.cmake_string_list)
         self.add_executable_ast = add_executable_ast
@@ -56,12 +56,12 @@ class _AddExecutableInserter(_TargetNameTrait, __SingleCmakeListInserter):
     def get_name(self):
         return self.add_executable_ast.executable_name
 
-class _SetNormalVariableInserter(__SingleCmakeListInserter):
+class _SetNormalVariableInserter(__SingleCMakeListInserter):
     def __init__(self, set_normal_variable_ast):
         super().__init__(set_normal_variable_ast.cmake_string_list)
         self.set_normal_variable_ast = set_normal_variable_ast
 
-class _TargetSourcesInserter(_TargetNameTrait, __SingleCmakeListInserter):
+class _TargetSourcesInserter(_TargetNameTrait, __SingleCMakeListInserter):
     def __init__(self, target_sources_ast):
         super().__init__(target_sources_ast.cmake_string_list)
         self.target_sources_ast = target_sources_ast
