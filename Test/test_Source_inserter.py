@@ -30,7 +30,7 @@ class TestSourceInserter(unittest.TestCase):
         given_ast = ast.Ast()
         given_source = ("set(TabsPls_Sources Main.cpp)\n"
             + "add_executable(TabsPls ${TabsPls_Sources})")
-        given_cmake_ast = given_ast.parse(given_source)
+        given_cmake_ast = [match[0] for match in list(given_ast.scan_all(given_source))]
 
         insert_action = source_inserter.insert_source_item_in_variable_from_target(given_cmake_ast, "file.cpp", "TabsPls", "TabsPls_Sources")
         self.assertEqual(insert_action.position, 29)
@@ -97,7 +97,7 @@ class TestSourceInserter(unittest.TestCase):
         given_source = ("set(TabsPls_Sources Main.cpp)\n"
             + "add_executable(TabsPls ${TabsPls_Sources})\n"
             + "target_sources(TabsPls PRIVATE file1.cpp)")
-        given_cmake_ast = given_ast.parse(given_source)
+        given_cmake_ast = [match[0] for match in list(given_ast.scan_all(given_source))]
 
         insert_action = source_inserter.insert_source_item_next_to_other_source(given_cmake_ast, "file2.cpp", "file1.cpp")
         self.assertEqual(insert_action.position, 114)

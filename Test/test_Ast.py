@@ -130,6 +130,37 @@ class TestAst(unittest.TestCase):
 
         self.assertTrue(list(result)[0].is_same(expected_result))
 
+    def test_scan_all_complete_project_source(self):
+        given_source = ("project(TabsPls)\n\n"
+            + "set(TabsPls_Headers File.hpp\n"
+            + "\tDirectory.hpp\n"
+            + ")\n\n"
+            + "set(TabsPls_Sources File.cpp\n"
+            + "\tDirectory.cpp\n"
+            + "\tMain.cpp\n"
+            + ")\n\n"
+            + "add_executable(TabsPls ${TabsPls_Headers} ${TabsPls_Sources})\n"
+            + "target_sources(TabsPls PRIVATE windows_util.h windows_util.c)")
+
+        matches = ast.Ast().scan_all(given_source)
+        self.assertEqual(len(matches), 4)
+
+        expected_first_match = ast.SetNormalVariable("TabsPls_Headers", 
+            ast.CMakeStringList([ast.ListItemString("File.hpp"), ast.ListItemString("Directory.hpp")]))
+        self.assertTrue(list(matches[0])[0].is_same(expected_first_match))
+
+        expected_second_match = ast.SetNormalVariable("TabsPls_Sources", 
+            ast.CMakeStringList([ast.ListItemString("File.cpp"), ast.ListItemString("Directory.cpp"), ast.ListItemString("Main.cpp")]))
+        self.assertTrue(list(matches[1])[0].is_same(expected_second_match))
+
+        expected_third_match = ast.AddExecutable("TabsPls", 
+            ast.CMakeStringList([ast.VariableUse("TabsPls_Headers"), ast.VariableUse("TabsPls_Sources")]))
+        self.assertTrue(list(matches[2])[0].is_same(expected_third_match))
+
+        expected_fourth_match = ast.TargetSources("TabsPls", 
+            ast.CMakeStringList([ast.ListItemString("windows_util.h"), ast.ListItemString("windows_util.c")]))
+        self.assertTrue(list(matches[3])[0].is_same(expected_fourth_match))
+
 
 if __name__ == '__main__':
     unittest.main()

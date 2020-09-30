@@ -158,6 +158,9 @@ class Ast(object):
 
 
     def parse(self, string):
-        toks = self._parser._cmake_stmt.parseString(string) 
-        return toks
+        return self._parser._cmake_stmt.parseString(string)
+
+    def scan_all(self, string):
+        """ Scan the given string for supported cmake grammar, ignores unsupported content and returns all matches"""
+        return [match for (match, _, _) in self._parser._cmake_stmt.scanString(string)]
         
