@@ -143,11 +143,11 @@ class ParserTest(unittest.TestCase):
 
         givenString = ("target_sources(TabsPls\n"
             + "PRIVATE\n"
-            + "a.cpp b.cpp c.cpp\n"
+            + "\ta.cpp b.cpp c.cpp\n"
             + "PUBLIC\n"
-            + "pub_a.cpp pub_b.cpp pub_c.cpp\n"
+            + "\tpub_a.cpp pub_b.cpp pub_c.cpp\n"
             + "INTERFACE\n"
-            + "interface.hpp\n"
+            + "\tinterface.hpp\n"
             + ")")
 
         result = givenParser._target_sources_stmt.parseString(givenString)

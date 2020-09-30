@@ -126,9 +126,42 @@ class TestAst(unittest.TestCase):
         givenAst = ast.Ast()
         result = givenAst.parse("target_sources(TabsPls PRIVATE file_linux.h file_linux.cpp ${TabsPls_Sources_Linux} PUBLIC linux_extras.h)")
         
-        expected_result = ast.TargetSources("TabsPls", ast.CMakeStringList([ast.ListItemString("file_linux.h"), ast.ListItemString("file_linux.cpp"), ast.VariableUse("TabsPls_Sources_Linux"), ast.ListItemString("linux_extras.h")]))
+        expected_result = ast.TargetSources("TabsPls", ast.CMakeStringList([ast.ListItemStringWithPosition("file_linux.h", 31), ast.ListItemString("file_linux.cpp"), ast.VariableUse("TabsPls_Sources_Linux"), ast.ListItemString("linux_extras.h")]))
 
         self.assertTrue(list(result)[0].is_same(expected_result))
+
+    def test_scan_all_complete_project_source(self):
+        given_source = ("project(TabsPls)\n"
+            + "\tset(TabsPls_Headers File.hpp\n"
+            + "Directory.hpp\n"
+            + ")\n\n"
+            + "set(TabsPls_Sources File.cpp\n"
+            + "\tDirectory.cpp\n"
+            + "\tMain.cpp\n"
+            + ")\n\n"
+            + "add_executable(TabsPls ${TabsPls_Headers} ${TabsPls_Sources})\n\n"
+            + "target_sources(TabsPls PRIVATE windows_util.h windows_util.c)")
+
+        given_ast = ast.Ast()
+        given_ast._parser._cmake_stmt.parseWithTabs()
+        matches = given_ast.scan_all(given_source)
+        self.assertEqual(len(matches), 4)
+
+        expected_first_match = ast.SetNormalVariable("TabsPls_Headers", 
+            ast.CMakeStringList([ast.ListItemStringWithPosition("File.hpp", 38), ast.ListItemStringWithPosition("Directory.hpp", 47)]))
+        self.assertTrue(list(matches[0])[0].is_same(expected_first_match))
+
+        expected_second_match = ast.SetNormalVariable("TabsPls_Sources", 
+            ast.CMakeStringList([ast.ListItemStringWithPosition("File.cpp", 84), ast.ListItemStringWithPosition("Directory.cpp", 94), ast.ListItemStringWithPosition("Main.cpp", 109)]))
+        self.assertTrue(list(matches[1])[0].is_same(expected_second_match))
+
+        expected_third_match = ast.AddExecutable("TabsPls", 
+            ast.CMakeStringList([ast.VariableUseWithLocation("TabsPls_Headers", 144), ast.VariableUseWithLocation("TabsPls_Sources", 163)]))
+        self.assertTrue(list(matches[2])[0].is_same(expected_third_match))
+
+        expected_fourth_match = ast.TargetSources("TabsPls", 
+            ast.CMakeStringList([ast.ListItemStringWithPosition("windows_util.h", 215), ast.ListItemStringWithPosition("windows_util.c", 230)]))
+        self.assertTrue(list(matches[3])[0].is_same(expected_fourth_match))
 
 
 if __name__ == '__main__':

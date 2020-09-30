@@ -27,8 +27,7 @@ class Parser(object):
         self._scope_specifier_keywords = Literal("PRIVATE") | Literal("PUBLIC") | Literal("INTERFACE")
 
         cmake_any_list_item = NotAny(self._scope_specifier_keywords) + (variable_use_in_string_list | self._string_list_item)
-        explicit_whitespace = White().suppress() #The White().suppress() is added to ensure the match locations consider whitespace, a workaround for this bug: https://github.com/pyparsing/pyparsing/issues/244
-        self._cmake_list_content = ZeroOrMore(cmake_any_list_item + explicit_whitespace) + Optional(cmake_any_list_item)
+        self._cmake_list_content = OneOrMore(cmake_any_list_item)
         self._cmake_list_content.ignore(self._comment_stmt)
 
         self._set_keyword = CaselessLiteral("set")
@@ -36,7 +35,7 @@ class Parser(object):
 
         #https://cmake.org/cmake/help/latest/command/set.html#set-normal-variable 
         self._set_normal_variable_stmt = self._set_keyword + "(" \
-            + self._variable_name + explicit_whitespace \
+            + self._variable_name \
                 + self._cmake_list_content + Optional(self._parent_scope_keyword) + ")"
 
         #https://cmake.org/cmake/help/latest/command/set.html#set-environment-variable
@@ -51,8 +50,8 @@ class Parser(object):
 
         #https://cmake.org/cmake/help/latest/command/add_library.html#normal-libraries
         self._add_library_stmt = self._add_library_keyword + "(" \
-            + self._library_name + explicit_whitespace + Optional(self._normal_library_types + explicit_whitespace) \
-                + Optional(self._exclude_from_all_flag + explicit_whitespace) \
+            + self._library_name + Optional(self._normal_library_types) \
+                + Optional(self._exclude_from_all_flag) \
                 + self._cmake_list_content + ")"
 
         self._object_library_type = Literal("OBJECT")
@@ -60,7 +59,7 @@ class Parser(object):
         #https://cmake.org/cmake/help/latest/command/add_library.html#object-libraries
         self._add_object_library_stmt = self._add_library_keyword + "(" \
             + self._library_name + self._object_library_type \
-                + explicit_whitespace + self._cmake_list_content + ")"
+                + self._cmake_list_content + ")"
 
         self._add_executable_keyword = CaselessLiteral("add_executable")
         self._add_executable_win32_keyword = Literal("WIN32")
@@ -70,14 +69,14 @@ class Parser(object):
 
         #https://cmake.org/cmake/help/latest/command/add_executable.html#normal-executables
         self._add_normal_executable_stmt = self._add_executable_keyword + "(" \
-            + self._executable_name + explicit_whitespace + Optional(self._add_executable_win32_keyword + explicit_whitespace) + Optional(self._add_executable_macosx_bundle_keyword + explicit_whitespace) + Optional(self._exclude_from_all_flag + explicit_whitespace) \
+            + self._executable_name + Optional(self._add_executable_win32_keyword) + Optional(self._add_executable_macosx_bundle_keyword) + Optional(self._exclude_from_all_flag) \
                 + self._cmake_list_content + ")"
 
         self._target_sources_keyword = Literal("target_sources")
 
         #https://cmake.org/cmake/help/latest/command/target_sources.html
-        self._target_sources_stmt = self._target_sources_keyword + "(" + self._executable_name + explicit_whitespace + OneOrMore(self._scope_specifier_keywords + explicit_whitespace + self._cmake_list_content) + Optional(explicit_whitespace)+ ")"
+        self._target_sources_stmt = self._target_sources_keyword + "(" + self._executable_name + OneOrMore(self._scope_specifier_keywords + self._cmake_list_content) + ")"
 
-        self._cmake_stmt = OneOrMore(self._set_normal_variable_stmt | self._add_library_stmt | self._add_object_library_stmt | self._add_normal_executable_stmt | self._target_sources_stmt)
+        self._cmake_stmt = self._set_normal_variable_stmt | self._add_library_stmt | self._add_object_library_stmt | self._add_normal_executable_stmt | self._target_sources_stmt
 
         self._cmake_stmt.ignore(self._set_env_variable_stmt)
