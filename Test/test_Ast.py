@@ -131,9 +131,9 @@ class TestAst(unittest.TestCase):
         self.assertTrue(list(result)[0].is_same(expected_result))
 
     def test_scan_all_complete_project_source(self):
-        given_source = ("project(TabsPls)\n\n"
-            + "set(TabsPls_Headers File.hpp\n"
-            + "\tDirectory.hpp\n"
+        given_source = ("project(TabsPls)\n"
+            + " set(TabsPls_Headers File.hpp\n"
+            + "Directory.hpp\n"
             + ")\n\n"
             + "set(TabsPls_Sources File.cpp\n"
             + "\tDirectory.cpp\n"
@@ -145,8 +145,10 @@ class TestAst(unittest.TestCase):
         matches = ast.Ast().scan_all(given_source)
         self.assertEqual(len(matches), 4)
 
+        print(given_source[:44] + " CLASS.H" + given_source[44:])
+
         expected_first_match = ast.SetNormalVariable("TabsPls_Headers", 
-            ast.CMakeStringList([ast.ListItemString("File.hpp"), ast.ListItemString("Directory.hpp")]))
+            ast.CMakeStringList([ast.ListItemStringWithPosition("File.hpp", 36), ast.ListItemString("Directory.hpp")]))
         self.assertTrue(list(matches[0])[0].is_same(expected_first_match))
 
         expected_second_match = ast.SetNormalVariable("TabsPls_Sources", 

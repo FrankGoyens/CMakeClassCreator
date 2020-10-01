@@ -29,12 +29,20 @@ class ListItemString(object):
         
     def is_same(self, other):
         return isinstance(other, ListItemString) \
-                and self.list_item_string == other.list_item_string 
+            and self.list_item_string == other.list_item_string 
                 
 class ListItemStringWithPosition(ListItemString, _LocationTrait):
     def __init__(self, list_item_string, location):
         super().__init__(list_item_string)
         self.location = location
+
+    def is_same(self, other):
+        if not isinstance(other, ListItemStringWithPosition) and isinstance(other, ListItemString):
+            return super().is_same(other)
+
+        return isinstance(other, ListItemStringWithPosition) \
+            and self.location == other.location \
+                and super().is_same(other)
 
     def get_location(self):
         return self.location
@@ -63,8 +71,8 @@ class SetNormalVariable(object):
 
     def is_same(self, other):
         return isinstance(other, SetNormalVariable) \
-                and self.var_name == other.var_name \
-                and self.cmake_string_list.is_same(other.cmake_string_list)
+            and self.var_name == other.var_name \
+            and self.cmake_string_list.is_same(other.cmake_string_list)
 
 class AddLibrary(object):
     def __init__(self, library_name, cmake_string_list):
@@ -73,8 +81,8 @@ class AddLibrary(object):
 
     def is_same(self, other):
         return isinstance(other, AddLibrary) \
-                and self.library_name == other.library_name \
-                and self.cmake_string_list.is_same(other.cmake_string_list)
+            and self.library_name == other.library_name \
+            and self.cmake_string_list.is_same(other.cmake_string_list)
 
 class AddExecutable(object):
     def __init__(self, executable_name, cmake_string_list):
@@ -83,8 +91,8 @@ class AddExecutable(object):
 
     def is_same(self, other):
         return isinstance(other, AddExecutable) \
-                and self.executable_name == other.executable_name \
-                and self.cmake_string_list.is_same(other.cmake_string_list)
+            and self.executable_name == other.executable_name \
+            and self.cmake_string_list.is_same(other.cmake_string_list)
 
 class TargetSources(object):
     def __init__(self, target_name, cmake_string_list):
@@ -93,8 +101,8 @@ class TargetSources(object):
 
     def is_same(self, other):
         return isinstance(other, TargetSources) \
-                and self.target_name == other.target_name \
-                and self.cmake_string_list.is_same(other.cmake_string_list)
+            and self.target_name == other.target_name \
+            and self.cmake_string_list.is_same(other.cmake_string_list)
 ### AST components END ###
 
 def _parse_standalone_variable_use_action(s, loc, toks):
@@ -137,9 +145,6 @@ def _parse_target_sources_action(s, loc, toks):
     return TargetSources(target_name, cmake_string_list)
 
 class Ast(object):
-    """
-    This uses the parser to create parsed objects
-    """
     def __init__(self):
         self._parser = Parser()
 
@@ -162,5 +167,9 @@ class Ast(object):
 
     def scan_all(self, string):
         """ Scan the given string for supported cmake grammar, ignores unsupported content and returns all matches"""
-        return [match for (match, _, _) in self._parser._cmake_stmt.scanString(string)]
+        matches = []
+        for (match, start, end) in self._parser._cmake_stmt.scanString(string):
+            matches.append(match)
+            print(start)
+        return matches
         

@@ -4,7 +4,7 @@ class ClassInserterException(Exception):
     pass
 
 _implementation_extensions = [".c", ".C", ".c++", ".cc", ".cpp", ".cxx"]
-_header_extensions = [".h", ".hh", ".h++", ".hpp", ".hxx"]
+_header_extensions = [".hpp"]#[".h", ".hh", ".h++", ".hpp", ".hxx"]
 
 def insert_class_next_to_other_class(cmake_ast, class_name, reference_class_name):
     header_insert_action = None
