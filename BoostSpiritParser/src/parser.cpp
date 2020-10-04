@@ -1,6 +1,7 @@
+
 #include <BoostSpiritCMakeParser/parser.hpp>
 
-#include <string>
+#include <vector>
 
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/phoenix_core.hpp>
@@ -15,7 +16,7 @@ using namespace boost::spirit::ascii;
 namespace Ast
 {
 
-struct VariableUseWithLocation //: VariableUse
+struct VariableUseWithLocation
 {
     std::string var_name;
     unsigned location;
@@ -33,7 +34,7 @@ struct ListItemStringWithLocation : ListItemString
 
 struct CMakeStringList
 {
-    std::vector<boost::variant<VariableUseWithLocation, ListItemStringWithLocation>> items;
+    std::vector<VariableUseWithLocation> items;
 };
 
 struct SetNormalVariable
@@ -117,6 +118,21 @@ BOOST_FUSION_ADAPT_STRUCT(
     (auto, statement)
 )
 
+typedef boost::spirit::context<
+        boost::fusion::cons<Ast::VariableUseWithLocation&, boost::fusion::nil>, 
+        boost::fusion::vector0<> 
+    > f_context;
+	
+template<typename Iterator>
+static void set_position_on_success(boost::fusion::vector<
+		Iterator&, //first
+		Iterator const&, //last
+		Iterator const&> args, //i
+	f_context& context)
+{
+    std::cout << "succesfully parsed variable use" << std::endl;
+}
+
 namespace Ast
 {
 
@@ -131,13 +147,37 @@ struct cmake_string_list_grammar:
         using ascii::char_;
         using qi::int_;
         using qi::eps;
+        using qi::on_success;
+        using qi::on_error;
 
         variable_use %= lit("${") >> +(char_ - "}") >> "}";
 
-	location %= eps[_val = 0U]; //This will be filled later with on_success
+	    location %= eps[_val = 0U]; //This will be filled later with on_success
         variable_use_with_location %= variable_use >> location;
+
+        variable_use.name("variable_use");
+        variable_use_with_location.name("variable_use_with_location");
+
+        cmake_string_list_items %= +(variable_use_with_location);
+        cmake_string_list %= cmake_string_list_items;
+        
+	    on_success(variable_use_with_location, &set_position_on_success<Iterator>);
+        // on_error<fail>
+        // (
+        //     variable_use_with_location
+        // , std::cout
+        //         << val("Error! Expecting ")
+        //         << _4                               // what failed?
+        //         << val(" here: \"")
+        //         << construct<std::string>(_3, _2)   // iterators to error-pos, end
+        //         << val("\"")
+        //         << std::endl
+        // );
+
+
     }
  
+    qi::rule<Iterator, std::vector<VariableUseWithLocation>(), ascii::space_type> cmake_string_list_items;
     qi::rule<Iterator, CMakeStringList(), ascii::space_type> cmake_string_list;
     qi::rule<Iterator, std::string(), ascii::space_type> variable_use;
     qi::rule<Iterator, unsigned(), ascii::space_type> location;
@@ -193,7 +233,7 @@ namespace CMakeParser
 {
     void parse()
     {
-        std::string source = "File1.cpp ${sources} Main.cpp)";
+        std::string source = "${sources}";
         parse_cmake(source.begin(), source.end());
     }
 }
