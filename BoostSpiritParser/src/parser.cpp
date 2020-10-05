@@ -24,20 +24,13 @@ struct VariableUseWithLocation
     unsigned location;
 };
 
-struct ListItemString
+struct ListItemStringWithLocation
 {
     std::string list_item_string;
-};
-
-struct ListItemStringWithLocation : ListItemString
-{
     unsigned location;
 };
 
-struct CMakeStringList
-{
-    std::vector<VariableUseWithLocation> items;
-};
+using CMakeStringList =  std::vector<boost::variant<VariableUseWithLocation, ListItemStringWithLocation>>;
 
 struct SetNormalVariable
 {
@@ -87,11 +80,6 @@ BOOST_FUSION_ADAPT_STRUCT(
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
-    Ast::CMakeStringList,
-    (auto, items)
-)
-
-BOOST_FUSION_ADAPT_STRUCT(
     Ast::SetNormalVariable,
     (auto, var_name),
     (auto, cmake_string_list)
@@ -120,20 +108,21 @@ BOOST_FUSION_ADAPT_STRUCT(
     (auto, statement)
 )
 
+template<typename Attribute>
 using f_context = boost::spirit::context<
-        boost::fusion::cons<Ast::VariableUseWithLocation&, boost::fusion::nil>, 
+        boost::fusion::cons<Attribute&, boost::fusion::nil>, 
         boost::fusion::vector0<>>;
 	
-template<typename Iterator>
-static void set_position_on_success(boost::fusion::vector<
+template<typename Iterator, typename Attribute>
+static void set_match_location_on_success(boost::fusion::vector<
 		Iterator&, //first
 		Iterator const&, //last
 		Iterator const&> args, //i
-	f_context& context,
+	f_context<Attribute>& context,
     Iterator inputBegin)
 {
     const unsigned location_index = boost::fusion::at_c<0>(args) - inputBegin;
-    std::cout << "succesfully parsed variable use at location " << location_index << std::endl;
+    std::cout << "succesfully parsed cmake list item at location " << location_index << std::endl;
     boost::fusion::at_c<0>(context.attributes).location = location_index;
 }
 
@@ -141,62 +130,82 @@ namespace Ast
 {
 
 template<typename Iterator>
-struct cmake_string_list_grammar:
+struct cmake_grammar:
     qi::grammar<Iterator, CMakeStringList(), ascii::space_type>
 {
-    cmake_string_list_grammar(Iterator inputBegin):
-        cmake_string_list_grammar::base_type(cmake_string_list)
+    cmake_grammar(Iterator inputBegin):
+        cmake_grammar::base_type(cmake_string_list)
     {
         using qi::lit;
         using ascii::char_;
         using qi::int_;
         using qi::eps;
+        using qi::lexeme;
+        using qi::skip;
         using qi::on_success;
         using qi::on_error;
 
+        dblQuotedString %= lexeme["\"" >> +(char_ - "\"") >> "\""];
+        comment %= lexeme["#" >> +(char_ - "\n") >> "\n"];
+
         variable_use %= lit("${") >> +(char_ - "}") >> "}";
+        equivalent_variable_use %= variable_use | ("\"" >> variable_use >> "\"");
 
-	    location %= eps[_val = 0U]; //This will be filled later with on_success
-        variable_use_with_location %= variable_use >> location;
+        location %= eps[_val = 0U]; //This will be filled later with on_success
 
-        variable_use.name("variable_use");
-        variable_use_with_location.name("variable_use_with_location");
+        //this is not used to parse into anything meaningful, so they are combined into a single token. This makes this easily managed
+        word_until_rpar %= +(char_ - ")");
+        variable_use_to_compose_list_item %= (dblQuotedString[_val = _1] >> equivalent_variable_use[_val += _1])
+            | (equivalent_variable_use[_val = _1] >> dblQuotedString[_val += _1])
+            | (word_until_rpar[_val = _1] >> equivalent_variable_use[_val += _1])
+            | (equivalent_variable_use[_val = _1] >> word_until_rpar[_val += _1]);
 
-        cmake_string_list_items %= +(variable_use_with_location);
-        cmake_string_list %= cmake_string_list_items;
+        variable_use_with_location %= equivalent_variable_use >> location;
+
+        list_item_string %= dblQuotedString 
+            | word_until_rpar
+            | skip[/*not supported/needed yet*/variable_use_to_compose_list_item]
+            | skip[comment];
+        list_item_string_with_location %= list_item_string >> location;
+
+        scope_specifier_keywords = lit("PRIVATE") | "PUBLIC" | "INTERFACE";
+        any_list_item %= !scope_specifier_keywords >> 
+            (variable_use_with_location 
+            | list_item_string_with_location);
+
+        cmake_string_list %= +(any_list_item);
 
 	    on_success(variable_use_with_location, 
-            boost::bind(&set_position_on_success<Iterator>, boost::placeholders::_1, boost::placeholders::_2, inputBegin));
+            boost::bind(&set_match_location_on_success<Iterator, VariableUseWithLocation>, boost::placeholders::_1, boost::placeholders::_2, inputBegin));
+        on_success(list_item_string_with_location, 
+            boost::bind(&set_match_location_on_success<Iterator, ListItemStringWithLocation>, boost::placeholders::_1, boost::placeholders::_2, inputBegin));
     }
  
-    qi::rule<Iterator, std::vector<VariableUseWithLocation>(), ascii::space_type> cmake_string_list_items;
-    qi::rule<Iterator, CMakeStringList(), ascii::space_type> cmake_string_list;
-    qi::rule<Iterator, std::string(), ascii::space_type> variable_use;
+    //basics
+    qi::rule<Iterator, std::string(), ascii::space_type> comment;
+    qi::rule<Iterator, std::string(), ascii::space_type> dblQuotedString;
+    qi::rule<Iterator, std::string(), ascii::space_type> word_until_rpar;
     qi::rule<Iterator, unsigned(), ascii::space_type> location;
+
+    //list item string (a list item that is just a string)
+    qi::rule<Iterator, std::string(), ascii::space_type> list_item_string;
+    qi::rule<Iterator, ListItemStringWithLocation(), ascii::space_type> list_item_string_with_location;
+
+    //variable use
+    qi::rule<Iterator, std::string(), ascii::space_type> variable_use;
+    qi::rule<Iterator, std::string(), ascii::space_type> equivalent_variable_use;
+    qi::rule<Iterator, std::string(), ascii::space_type> variable_use_to_compose_list_item;
+
     qi::rule<Iterator, VariableUseWithLocation(), ascii::space_type> variable_use_with_location;
+
+    //list item
+    qi::rule<Iterator, std::string(), ascii::space_type> scope_specifier_keywords;
+    qi::rule<Iterator, boost::variant<VariableUseWithLocation, ListItemStringWithLocation>(), ascii::space_type> any_list_item;
+
+    //cmake string list
+    qi::rule<Iterator, CMakeStringList(), ascii::space_type> cmake_string_list;
 };
 
-}
-namespace
-{
-template<typename Iterator>
-struct cmake_statement_grammar:
-    qi::grammar<Iterator, Ast::CMakeStatement(), ascii::space_type>
-{
-    cmake_statement_grammar():
-        cmake_statement_grammar::base_type(cmake_statement)
-    {
-        using qi::lit;
-        using qi::_val;
-        using qi::char_;
-
-        // set_normal_variable = lit("set") >> "(" >> (+char_)[_1] >> +((char_[_1] - ")")) >> ")";
-        // cmake_statement %= variable_use | set_normal_variable;
-    }
-
-    qi::rule<Iterator, Ast::CMakeStatement(), ascii::space_type> cmake_statement;
-    qi::rule<Iterator, Ast::SetNormalVariable(), ascii::space_type> set_normal_variable;
-};
 }
 
 template <typename Iterator>
@@ -206,13 +215,14 @@ static bool parse_cmake(Iterator first, Iterator last)
     using qi::phrase_parse;
     using ascii::space;
 
-    Ast::cmake_string_list_grammar<Iterator> grammar(first);
-    Ast::CMakeStringList ast;
+    Ast::cmake_grammar<Iterator> grammar(first);
+    // Ast::CMakeStringList ast;
+    boost::fusion::vector<std::string, std::string> ast;
 
     bool r = phrase_parse(
         first,                       
         last,                           
-        grammar,
+        (grammar.comment >> grammar.variable_use),
         space,
         ast  
     );
@@ -223,9 +233,8 @@ static bool parse_cmake(Iterator first, Iterator last)
 
 namespace CMakeParser
 {
-    void parse()
+    void parse(const std::string& source)
     {
-        std::string source = "   ${sources}";
         parse_cmake(source.begin(), source.end());
     }
 }
