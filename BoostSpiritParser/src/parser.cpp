@@ -3,6 +3,8 @@
 
 #include <vector>
 
+#include <boost/bind/bind.hpp>
+
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/phoenix_core.hpp>
 #include <boost/spirit/include/phoenix_operator.hpp>
@@ -118,19 +120,21 @@ BOOST_FUSION_ADAPT_STRUCT(
     (auto, statement)
 )
 
-typedef boost::spirit::context<
+using f_context = boost::spirit::context<
         boost::fusion::cons<Ast::VariableUseWithLocation&, boost::fusion::nil>, 
-        boost::fusion::vector0<> 
-    > f_context;
+        boost::fusion::vector0<>>;
 	
 template<typename Iterator>
 static void set_position_on_success(boost::fusion::vector<
 		Iterator&, //first
 		Iterator const&, //last
 		Iterator const&> args, //i
-	f_context& context)
+	f_context& context,
+    Iterator inputBegin)
 {
-    std::cout << "succesfully parsed variable use" << std::endl;
+    const unsigned location_index = boost::fusion::at_c<0>(args) - inputBegin;
+    std::cout << "succesfully parsed variable use at location " << location_index << std::endl;
+    boost::fusion::at_c<0>(context.attributes).location = location_index;
 }
 
 namespace Ast
@@ -140,7 +144,7 @@ template<typename Iterator>
 struct cmake_string_list_grammar:
     qi::grammar<Iterator, CMakeStringList(), ascii::space_type>
 {
-    cmake_string_list_grammar():
+    cmake_string_list_grammar(Iterator inputBegin):
         cmake_string_list_grammar::base_type(cmake_string_list)
     {
         using qi::lit;
@@ -160,21 +164,9 @@ struct cmake_string_list_grammar:
 
         cmake_string_list_items %= +(variable_use_with_location);
         cmake_string_list %= cmake_string_list_items;
-        
-	    on_success(variable_use_with_location, &set_position_on_success<Iterator>);
-        // on_error<fail>
-        // (
-        //     variable_use_with_location
-        // , std::cout
-        //         << val("Error! Expecting ")
-        //         << _4                               // what failed?
-        //         << val(" here: \"")
-        //         << construct<std::string>(_3, _2)   // iterators to error-pos, end
-        //         << val("\"")
-        //         << std::endl
-        // );
 
-
+	    on_success(variable_use_with_location, 
+            boost::bind(&set_position_on_success<Iterator>, boost::placeholders::_1, boost::placeholders::_2, inputBegin));
     }
  
     qi::rule<Iterator, std::vector<VariableUseWithLocation>(), ascii::space_type> cmake_string_list_items;
@@ -214,7 +206,7 @@ static bool parse_cmake(Iterator first, Iterator last)
     using qi::phrase_parse;
     using ascii::space;
 
-    Ast::cmake_string_list_grammar<Iterator> grammar;
+    Ast::cmake_string_list_grammar<Iterator> grammar(first);
     Ast::CMakeStringList ast;
 
     bool r = phrase_parse(
@@ -233,7 +225,7 @@ namespace CMakeParser
 {
     void parse()
     {
-        std::string source = "${sources}";
+        std::string source = "   ${sources}";
         parse_cmake(source.begin(), source.end());
     }
 }
