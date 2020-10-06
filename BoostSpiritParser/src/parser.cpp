@@ -38,6 +38,12 @@ struct SetNormalVariable
     CMakeStringList cmake_string_list;
 };
 
+struct SetEnvVariable
+{
+    std::string var_name;
+    boost::optional<std::string> value;
+};
+
 struct AddLibrary
 {
     std::string library_name;
@@ -50,10 +56,16 @@ struct AddExecutable
     CMakeStringList cmake_string_list;
 };
 
+struct ScopedList
+{
+    std::string scope_name;
+    CMakeStringList cmake_string_list;
+};
+
 struct TargetSources
 {
     std::string target_name;
-    CMakeStringList cmake_string_list;
+    std::vector<ScopedList> sources_per_scope;  
 };
 
 struct CMakeStatement
@@ -86,6 +98,12 @@ BOOST_FUSION_ADAPT_STRUCT(
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
+    Ast::SetEnvVariable,
+    (auto, var_name),
+    (auto, value)
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
     Ast::AddLibrary,
     (auto, library_name),
     (auto, cmake_string_list)
@@ -98,9 +116,15 @@ BOOST_FUSION_ADAPT_STRUCT(
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
+    Ast::ScopedList,
+    (auto, scope_name),
+    (auto, cmake_string_list)
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
     Ast::TargetSources,
     (auto, target_name),
-    (auto, cmake_string_list)
+    (auto, sources_per_scope)
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
@@ -131,10 +155,10 @@ namespace Ast
 
 template<typename Iterator>
 struct cmake_grammar:
-    qi::grammar<Iterator, CMakeStringList(), ascii::space_type>
+    qi::grammar<Iterator, CMakeStatement(), ascii::space_type>
 {
     cmake_grammar(Iterator inputBegin):
-        cmake_grammar::base_type(cmake_string_list)
+        cmake_grammar::base_type(cmake_statement)
     {
         using qi::lit;
         using ascii::char_;
@@ -168,7 +192,7 @@ struct cmake_grammar:
             | skip[comment];
         list_item_string_with_location %= list_item_string >> location;
 
-        scope_specifier_keywords = lit("PRIVATE") | "PUBLIC" | "INTERFACE";
+        scope_specifier_keywords = lit("PRIVATE") | lit("PUBLIC") | lit("INTERFACE");
         any_list_item %= !scope_specifier_keywords >> 
             (variable_use_with_location 
             | list_item_string_with_location);
@@ -179,6 +203,35 @@ struct cmake_grammar:
             boost::bind(&set_match_location_on_success<Iterator, VariableUseWithLocation>, boost::placeholders::_1, boost::placeholders::_2, inputBegin));
         on_success(list_item_string_with_location, 
             boost::bind(&set_match_location_on_success<Iterator, ListItemStringWithLocation>, boost::placeholders::_1, boost::placeholders::_2, inputBegin));
+
+        const auto set_keyword = lit("set") | lit("SET");
+
+        set_normal_variable %= set_keyword >> "(" >> (+char_ - cmake_string_list) >> cmake_string_list >> -lit("PARENT_SCOPE") >> ")";
+        set_env_variable %= set_keyword >> "(" >> "ENV" >> "{" >> +char_ >> "}" >> -(+char_ - ")") >> ")";
+
+        const auto add_library_keyword = lit("add_library") | lit("ADD_LIBRARY");
+        const auto normal_library_types = lit("STATIC") | lit("SHARED") | lit("MODULE");
+        const auto exclude_from_all_flag = lit("EXCLUDE_FROM_ALL");
+
+        add_library %= add_library_keyword >> "(" >> +char_ >> -normal_library_types >> -exclude_from_all_flag >> cmake_string_list >> ")";
+
+        const auto object_library_type_keyword = lit("OBJECT");
+
+        add_object_library %= add_library_keyword >> "(" >> +char_ >> object_library_type_keyword >> cmake_string_list >> ")";
+
+        const auto add_executable_keyword = lit("add_executable") | lit("ADD_EXECUTABLE");
+        const auto add_executable_win32_keyword = lit("WIN32");
+        const auto add_executable_macosx_bundle_keyword = lit("MACOSX_BUNDLE");
+
+        add_executable %= add_executable_keyword >> "(" >> +char_ >> -add_executable_win32_keyword >> -add_executable_macosx_bundle_keyword >> -exclude_from_all_flag >> cmake_string_list >> ")";
+
+        const auto target_sources_keyword = lit("target_sources") | lit("TARGET_SOURCES");
+
+        scoped_list %= scope_specifier_keywords >> cmake_string_list;
+
+        target_sources %= target_sources_keyword >> "(" >> (+char_ - scope_specifier_keywords) >> +scoped_list >> ")";
+
+        cmake_statement %= set_normal_variable | add_executable | add_library | add_object_library | target_sources;
     }
  
     //basics
@@ -204,6 +257,30 @@ struct cmake_grammar:
 
     //cmake string list
     qi::rule<Iterator, CMakeStringList(), ascii::space_type> cmake_string_list;
+
+    //https://cmake.org/cmake/help/latest/command/set.html#set-normal-variable 
+    qi::rule<Iterator, SetNormalVariable(), ascii::space_type> set_normal_variable;
+
+    //https://cmake.org/cmake/help/latest/command/set.html#set-environment-variable
+    qi::rule<Iterator, SetEnvVariable(), ascii::space_type> set_env_variable;
+
+    //https://cmake.org/cmake/help/latest/command/add_library.html#normal-libraries
+    qi::rule<Iterator, AddLibrary(), ascii::space_type> add_library;
+
+    //https://cmake.org/cmake/help/latest/command/add_library.html#object-libraries
+    qi::rule<Iterator, AddLibrary(), ascii::space_type> add_object_library;
+
+    //https://cmake.org/cmake/help/latest/command/add_executable.html#normal-executables
+    qi::rule<Iterator, AddExecutable(), ascii::space_type> add_executable;
+
+    //a scoped list (PRIVATE ... PUBLIC ... INTERFACE ...)
+    qi::rule<Iterator, ScopedList(), ascii::space_type> scoped_list;
+
+    //https://cmake.org/cmake/help/latest/command/target_sources.html
+    qi::rule<Iterator, TargetSources(), ascii::space_type> target_sources;
+
+    //any top-level cmake statement
+    qi::rule<Iterator, CMakeStatement(), ascii::space_type> cmake_statement;
 };
 
 }
@@ -216,13 +293,12 @@ static bool parse_cmake(Iterator first, Iterator last)
     using ascii::space;
 
     Ast::cmake_grammar<Iterator> grammar(first);
-    // Ast::CMakeStringList ast;
-    boost::fusion::vector<std::string, std::string> ast;
+    Ast::CMakeStatement ast;
 
     bool r = phrase_parse(
         first,                       
         last,                           
-        (grammar.comment >> grammar.variable_use),
+        grammar,
         space,
         ast  
     );
