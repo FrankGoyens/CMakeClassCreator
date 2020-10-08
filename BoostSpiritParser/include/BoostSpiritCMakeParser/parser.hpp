@@ -2,7 +2,15 @@
 
 #include <string>
 
+#include <memory>
+
 namespace CMakeParser
 {
-    void parse(const std::string&);
+    struct Parser
+    {
+        virtual ~Parser() = default;
+        virtual bool parse(const std::string&) const = 0;
+    };
+
+    std::unique_ptr<Parser> CreateCMakeStringListParser();
 }

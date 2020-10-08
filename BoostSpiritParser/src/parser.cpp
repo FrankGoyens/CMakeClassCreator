@@ -206,7 +206,7 @@ struct cmake_grammar:
 
         const auto set_keyword = lit("set") | lit("SET");
 
-        set_normal_variable %= set_keyword >> "(" >> (+char_ - cmake_string_list) >> cmake_string_list >> -lit("PARENT_SCOPE") >> ")";
+        set_normal_variable %= set_keyword >> "(" >> +char_ >> cmake_string_list >> -lit("PARENT_SCOPE") >> ")";
         set_env_variable %= set_keyword >> "(" >> "ENV" >> "{" >> +char_ >> "}" >> -(+char_ - ")") >> ")";
 
         const auto add_library_keyword = lit("add_library") | lit("ADD_LIBRARY");
@@ -285,32 +285,42 @@ struct cmake_grammar:
 
 }
 
-template <typename Iterator>
-static bool parse_cmake(Iterator first, Iterator last)
+template <typename Iterator, typename Grammar, typename AstStruct>
+static bool parse_cmake(Iterator first, Iterator last, const Grammar& grammar, AstStruct& ast_struct)
 {
     using qi::double_;
     using qi::phrase_parse;
     using ascii::space;
-
-    Ast::cmake_grammar<Iterator> grammar(first);
-    Ast::CMakeStatement ast;
 
     bool r = phrase_parse(
         first,                       
         last,                           
         grammar,
         space,
-        ast  
+        ast_struct  
     );
     if (first != last) // fail if we did not get a full match
         return false;
     return r;
 }
 
+namespace 
+{
+    struct CMakeStringListParser : CMakeParser::Parser
+    {
+        bool parse(const std::string& source) const
+        {
+            Ast::cmake_grammar<std::string::const_iterator> grammar(source.begin());
+            Ast::CMakeStringList ast_struct;
+            return parse_cmake(source.begin(), source.end(), grammar.cmake_string_list, ast_struct);
+        }
+    };
+}
+
 namespace CMakeParser
 {
-    void parse(const std::string& source)
+    std::unique_ptr<Parser> CreateCMakeStringListParser()
     {
-        parse_cmake(source.begin(), source.end());
+        return std::make_unique<CMakeStringListParser>();
     }
 }
