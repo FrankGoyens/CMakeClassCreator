@@ -20,22 +20,40 @@ namespace
 
 int main(int argc, const char** argv)
 {
-    const auto parser = CMakeParser::CreateSetNormalVariableParser();
-    const std::string source = "set(varname\n \
-        \t${sources}\n \
-        #WHAT ABOUT COMMENTS?\n \
-        \tfile.cpp file2.cpp \"file met spaties.h\" \n)";
-    const auto result = parser->parse(source);
-
-    if(result)
     {
-        std::cout << "Parsing success!" << std::endl;
-        std::cout << "variable name: " << result->var_name << std::endl;
-        std::cout << "parent scope?: " << (result->parent_scope ? "true" : "false") << std::endl;
-        for(const auto& item: result->cmake_string_list)
-            boost::apply_visitor(list_item_visitor(), item);
+        const auto parser = CMakeParser::CreateSetNormalVariableParser();
+        const std::string source = "set(varname\n \
+            \t${sources}\n \
+            #WHAT ABOUT COMMENTS?\n \
+            \tfile.cpp file2.cpp \"file met spaties.h\" PARENT_SCOPE\n)";
+        const auto result = parser->parse(source);
+
+        if(result)
+        {
+            std::cout << "Parsing success!" << std::endl;
+            std::cout << "variable name: " << result->var_name << std::endl;
+            std::cout << "parent scope?: " << (result->parent_scope ? "true" : "false") << std::endl;
+            for(const auto& item: result->cmake_string_list)
+                boost::apply_visitor(list_item_visitor(), item);
+        }
+        else
+            std::cout << "Failed parsing set." << std::endl;
     }
-    else
-        std::cout << "Failed parsing." << std::endl;
+    {
+        const auto parser = CMakeParser::CreateCMakeStringListParser();
+        const std::string source = "\t${sources}\n \
+            #WHAT ABOUT COMMENTS?\n \
+            \tfile.cpp file2.cpp \"file met spaties.h\"";
+        const auto result = parser->parse(source);
+
+        if(result)
+        {
+            std::cout << "Parsing success!" << std::endl;
+            for(const auto& item: *result)
+                boost::apply_visitor(list_item_visitor(), item);
+        }
+        else
+            std::cout << "Failed parsing." << std::endl;
+    }
     return 0;
 }

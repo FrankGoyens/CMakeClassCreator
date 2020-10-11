@@ -32,7 +32,7 @@ BOOST_FUSION_ADAPT_STRUCT(
 BOOST_FUSION_ADAPT_STRUCT(
     Ast::SetNormalVariable,
     (auto, var_name),
-    (auto, cmake_string_list)
+    (auto, cmake_string_list),
     (auto, parent_scope)
 )
 
@@ -99,6 +99,7 @@ struct cmake_grammar:
     {
         using qi::lit;
         using ascii::char_;
+        using ascii::string;
         using qi::int_;
         using qi::eps;
         using qi::lexeme;
@@ -107,7 +108,6 @@ struct cmake_grammar:
         using qi::on_error;
 
         dblQuotedString %= lexeme["\"" >> +(char_ - "\"") >> "\""];
-        comment %= lexeme["#" >> +(char_ - "\n") >> "\n"];
 
         variable_use %= lit("${") >> +(char_ - "}") >> "}";
         equivalent_variable_use %= variable_use | ("\"" >> variable_use >> "\"");
@@ -118,22 +118,22 @@ struct cmake_grammar:
 
         //this is not used to parse into anything meaningful, so they are combined into a single token. This makes this easily managed
         word_until_space_or_rpar %= lexeme[+(char_ - ascii::space - lit(")"))];
-        // variable_use_to_compose_list_item %= (dblQuotedString >> equivalent_variable_use)
-        //     | (equivalent_variable_use >> dblQuotedString)
-        //     | (word_until_space_or_rpar >> equivalent_variable_use)
-        //     | (equivalent_variable_use >> word_until_space_or_rpar);
+        variable_use_to_compose_list_item %= (dblQuotedString >> equivalent_variable_use)
+            | (equivalent_variable_use >> dblQuotedString)
+            | (word_until_space_or_rpar >> equivalent_variable_use)
+            | (equivalent_variable_use >> word_until_space_or_rpar);
 
         variable_use_with_location %= equivalent_variable_use >> location;
 
+        parent_scope_keyword %= lit("PARENT_SCOPE");
+        scope_specifier_keywords = lit("PRIVATE") | lit("PUBLIC") | lit("INTERFACE");
+
         list_item_string %= dblQuotedString 
-            | word_until_space_or_rpar
-            // | skip[/*not supported/needed yet*/variable_use_to_compose_list_item]
-            | skip[comment];
+            | variable_use_to_compose_list_item
+            | (word_until_space_or_rpar - parent_scope_keyword - scope_specifier_keywords);
         list_item_string_with_location %= list_item_string >> location;
 
-        scope_specifier_keywords = lit("PRIVATE") | lit("PUBLIC") | lit("INTERFACE");
-        any_list_item %= !scope_specifier_keywords >> 
-            (variable_use_with_location 
+        any_list_item %= (variable_use_with_location 
             | list_item_string_with_location);
 
         cmake_string_list %= +any_list_item;
@@ -144,11 +144,11 @@ struct cmake_grammar:
             boost::bind(&set_match_location_on_success<Iterator, ListItemStringWithLocation>, boost::placeholders::_1, boost::placeholders::_2, inputBegin));
 
         const auto set_keyword = lit("set") | lit("SET");
-        parent_scope_keyword %= lexeme[lit("PARENT_SCOPE")];
 
-        set_normal_variable_cmake_string_list %= +(!parent_scope_keyword >> any_list_item);
+        set_normal_variable_cmake_string_list %= +(any_list_item);
 
-        set_normal_variable %= set_keyword >> "(" >> word_until_space >> set_normal_variable_cmake_string_list  >> -parent_scope_keyword >> ")";
+        set_normal_variable %= set_keyword >> "(" >> word_until_space >> cmake_string_list >> (parent_scope_keyword >> ")" | ")");
+        
         set_env_variable %= set_keyword >> "(" >> "ENV" >> "{" >> word_until_space >> "}" >> -(word_until_space - ")") >> ")";
 
         const auto add_library_keyword = lit("add_library") | lit("ADD_LIBRARY");
@@ -174,52 +174,9 @@ struct cmake_grammar:
         target_sources %= target_sources_keyword >> "(" >> (word_until_space - scope_specifier_keywords) >> +scoped_list >> ")";
 
         cmake_statement %= set_normal_variable | add_executable | add_library | add_object_library | target_sources;
-
-        using boost::phoenix::val;
-        using boost::phoenix::construct;
-
-        word_until_space.name("word_until_space");
-        qi::on_error<qi::fail>
-        (
-            word_until_space
-          , std::cout
-                << val("Error! Expecting ")
-                << _4                               // what failed?
-                << val(" here: \"")
-                << construct<std::string>(_3, _2)   // iterators to error-pos, end
-                << val("\"")
-                << std::endl
-        );
-
-        cmake_string_list.name("cmake_string_list");
-        qi::on_error<qi::fail>
-        (
-            cmake_string_list
-          , std::cout
-                << val("Error! Expecting ")
-                << _4                               // what failed?
-                << val(" here: \"")
-                << construct<std::string>(_3, _2)   // iterators to error-pos, end
-                << val("\"")
-                << std::endl
-        );
-
-        set_normal_variable.name("set_normal_variable");
-        qi::on_error<qi::fail>
-        (
-            set_normal_variable
-          , std::cout
-                << val("Error! Expecting ")
-                << _4                               // what failed?
-                << val(" here: \"")
-                << construct<std::string>(_3, _2)   // iterators to error-pos, end
-                << val("\"")
-                << std::endl
-        );
     }
  
     //basics
-    qi::rule<Iterator, std::string(), Skipper<Iterator>> comment;
     qi::rule<Iterator, std::string(), Skipper<Iterator>> dblQuotedString;
     qi::rule<Iterator, std::string(), Skipper<Iterator>> word_until_space;
     qi::rule<Iterator, std::string(), Skipper<Iterator>> word_until_space_or_rpar;
@@ -247,6 +204,7 @@ struct cmake_grammar:
 
     //https://cmake.org/cmake/help/latest/command/set.html#set-normal-variable 
     qi::rule<Iterator, SetNormalVariable(), Skipper<Iterator>> set_normal_variable;
+    qi::rule<Iterator, SetNormalVariable(), Skipper<Iterator>> set_parent_variable;
 
     //https://cmake.org/cmake/help/latest/command/set.html#set-environment-variable
     qi::rule<Iterator, SetEnvVariable(), Skipper<Iterator>> set_env_variable;
@@ -279,7 +237,7 @@ static bool parse_cmake(Iterator first, Iterator last, const Grammar& grammar, A
     using qi::phrase_parse;
     using ascii::space;
 
-    const auto comment = lexeme["#" >> +(char_ - "\n") >> "\n"];
+    const auto comment = "#" >> +(char_ - qi::eol) >> qi::eol;
     qi::rule<Iterator> skipper = space | comment;
 
     const bool r = phrase_parse(
