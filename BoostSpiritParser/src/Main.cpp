@@ -24,8 +24,9 @@ int main(int argc, const char** argv)
         const auto parser = CMakeParser::CreateSetNormalVariableParser();
         const std::string source = "set(varname\n \
             \t${sources}\n \
+            \t${samen}gesteld \n\
             #WHAT ABOUT COMMENTS?\n \
-            \tfile.cpp file2.cpp \"file met spaties.h\" PARENT_SCOPE\n)";
+            \tfile.cpp file2.cpp \"file met spaties.h\" \n)";
         const auto result = parser->parse(source);
 
         if(result)
@@ -41,9 +42,7 @@ int main(int argc, const char** argv)
     }
     {
         const auto parser = CMakeParser::CreateCMakeStringListParser();
-        const std::string source = "\t${sources}\n \
-            #WHAT ABOUT COMMENTS?\n \
-            \tfile.cpp file2.cpp \"file met spaties.h\"";
+        const std::string source = "${samen}gesteld";
         const auto result = parser->parse(source);
 
         if(result)

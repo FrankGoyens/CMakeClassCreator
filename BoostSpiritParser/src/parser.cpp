@@ -111,26 +111,33 @@ struct cmake_grammar:
 
         variable_use %= lit("${") >> +(char_ - "}") >> "}";
         equivalent_variable_use %= variable_use | ("\"" >> variable_use >> "\"");
+        
+        word_until_space_or_rpar %= lexeme[+(char_ - ascii::space - lit(")"))];
+
+        variable_use_to_compose_list_item %= 
+            lexeme[!dblQuotedString >> equivalent_variable_use] 
+            | lexeme[equivalent_variable_use >> !dblQuotedString]
+            | lexeme[!+(char_ - "$") >> equivalent_variable_use]
+            | lexeme[equivalent_variable_use >> !word_until_space_or_rpar];
 
         location %= eps[_val = 0U]; //This will be filled later with on_success
 
         word_until_space %= lexeme[+(char_ - ascii::space)];
 
         //this is not used to parse into anything meaningful, so they are combined into a single token. This makes this easily managed
-        word_until_space_or_rpar %= lexeme[+(char_ - ascii::space - lit(")"))];
-        variable_use_to_compose_list_item %= (dblQuotedString >> equivalent_variable_use)
-            | (equivalent_variable_use >> dblQuotedString)
-            | (word_until_space_or_rpar >> equivalent_variable_use)
-            | (equivalent_variable_use >> word_until_space_or_rpar);
+        // variable_use_to_compose_list_item %= (dblQuotedString >> equivalent_variable_use)
+        //     | (equivalent_variable_use >> dblQuotedString)
+        //     | (word_until_space_or_rpar >> equivalent_variable_use)
+        //     | (equivalent_variable_use >> word_until_space_or_rpar);
 
         variable_use_with_location %= equivalent_variable_use >> location;
 
-        parent_scope_keyword %= lit("PARENT_SCOPE");
+        parent_scope_keyword %= eps[_val = false] >> lit("PARENT_SCOPE")[_val = true];
         scope_specifier_keywords = lit("PRIVATE") | lit("PUBLIC") | lit("INTERFACE");
 
-        list_item_string %= dblQuotedString 
-            | variable_use_to_compose_list_item
-            | (word_until_space_or_rpar - parent_scope_keyword - scope_specifier_keywords);
+        list_item_string %= variable_use_to_compose_list_item;
+            // | dblQuotedString
+            // | (word_until_space_or_rpar - parent_scope_keyword - scope_specifier_keywords);
         list_item_string_with_location %= list_item_string >> location;
 
         any_list_item %= (variable_use_with_location 
@@ -177,10 +184,10 @@ struct cmake_grammar:
     }
  
     //basics
-    qi::rule<Iterator, std::string(), Skipper<Iterator>> dblQuotedString;
-    qi::rule<Iterator, std::string(), Skipper<Iterator>> word_until_space;
-    qi::rule<Iterator, std::string(), Skipper<Iterator>> word_until_space_or_rpar;
-    qi::rule<Iterator, std::string(), Skipper<Iterator>> parent_scope_keyword;
+    qi::rule<Iterator, std::string()> dblQuotedString;
+    qi::rule<Iterator, std::string()> word_until_space;
+    qi::rule<Iterator, std::string()> word_until_space_or_rpar;
+    qi::rule<Iterator, bool, Skipper<Iterator>> parent_scope_keyword;
     qi::rule<Iterator, unsigned(), Skipper<Iterator>> location;
 
     //list item string (a list item that is just a string)
@@ -188,9 +195,9 @@ struct cmake_grammar:
     qi::rule<Iterator, ListItemStringWithLocation(), Skipper<Iterator>> list_item_string_with_location;
 
     //variable use
-    qi::rule<Iterator, std::string(), Skipper<Iterator>> variable_use;
-    qi::rule<Iterator, std::string(), Skipper<Iterator>> equivalent_variable_use;
-    qi::rule<Iterator, std::string(), Skipper<Iterator>> variable_use_to_compose_list_item;
+    qi::rule<Iterator, std::string()> variable_use;
+    qi::rule<Iterator, std::string()> equivalent_variable_use;
+    qi::rule<Iterator, std::string()> variable_use_to_compose_list_item;
 
     qi::rule<Iterator, VariableUseWithLocation(), Skipper<Iterator>> variable_use_with_location;
 

@@ -28,7 +28,7 @@ struct SetNormalVariable
 {
     std::string var_name;
     CMakeStringList cmake_string_list;
-    boost::optional<std::string> parent_scope;
+    bool parent_scope;
 };
 
 struct SetEnvVariable
