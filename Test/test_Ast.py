@@ -126,10 +126,10 @@ class TestAst(unittest.TestCase):
         givenAst = ast.Ast()
         result = givenAst.parse("target_sources(TabsPls PRIVATE file_linux.h file_linux.cpp ${TabsPls_Sources_Linux} PUBLIC linux_extras.h)")
         
-        expected_result = ast.TargetSources("TabsPls", ast.CMakeStringList([ast.ListItemStringWithPosition("file_linux.h", 31), 
-            ast.ListItemStringWithPosition("file_linux.cpp", 44), 
+        expected_result = ast.TargetSources("TabsPls", ast.CMakeStringList([ast.ListItemStringWithLocation("file_linux.h", 31), 
+            ast.ListItemStringWithLocation("file_linux.cpp", 44), 
                 ast.VariableUseWithLocation("TabsPls_Sources_Linux", 59), 
-                    ast.ListItemStringWithPosition("linux_extras.h", 91)]))
+                    ast.ListItemStringWithLocation("linux_extras.h", 91)]))
 
         self.assertTrue(list(result)[0].is_same(expected_result))
 
@@ -150,11 +150,11 @@ class TestAst(unittest.TestCase):
         self.assertEqual(len(matches), 4)
 
         expected_first_match = ast.SetNormalVariable("TabsPls_Headers", 
-            ast.CMakeStringList([ast.ListItemStringWithPosition("File.hpp", 38), ast.ListItemStringWithPosition("Directory.hpp", 47)]))
+            ast.CMakeStringList([ast.ListItemStringWithLocation("File.hpp", 38), ast.ListItemStringWithLocation("Directory.hpp", 47)]))
         self.assertTrue(list(matches[0])[0].is_same(expected_first_match))
 
         expected_second_match = ast.SetNormalVariable("TabsPls_Sources", 
-            ast.CMakeStringList([ast.ListItemStringWithPosition("File.cpp", 84), ast.ListItemStringWithPosition("Directory.cpp", 94), ast.ListItemStringWithPosition("Main.cpp", 109)]))
+            ast.CMakeStringList([ast.ListItemStringWithLocation("File.cpp", 84), ast.ListItemStringWithLocation("Directory.cpp", 94), ast.ListItemStringWithLocation("Main.cpp", 109)]))
         self.assertTrue(list(matches[1])[0].is_same(expected_second_match))
 
         expected_third_match = ast.AddExecutable("TabsPls", 
@@ -162,7 +162,7 @@ class TestAst(unittest.TestCase):
         self.assertTrue(list(matches[2])[0].is_same(expected_third_match))
 
         expected_fourth_match = ast.TargetSources("TabsPls", 
-            ast.CMakeStringList([ast.ListItemStringWithPosition("windows_util.h", 215), ast.ListItemStringWithPosition("windows_util.c", 230)]))
+            ast.CMakeStringList([ast.ListItemStringWithLocation("windows_util.h", 215), ast.ListItemStringWithLocation("windows_util.c", 230)]))
         self.assertTrue(list(matches[3])[0].is_same(expected_fourth_match))
 
 

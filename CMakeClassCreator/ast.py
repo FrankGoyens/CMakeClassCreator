@@ -39,16 +39,16 @@ class ListItemString(object):
         return isinstance(other, ListItemString) \
             and self.list_item_string == other.list_item_string 
                 
-class ListItemStringWithPosition(ListItemString, _LocationTrait):
+class ListItemStringWithLocation(ListItemString, _LocationTrait):
     def __init__(self, list_item_string, location):
         super().__init__(list_item_string)
         self.location = location
 
     def is_same(self, other):
-        if not isinstance(other, ListItemStringWithPosition) and isinstance(other, ListItemString):
+        if not isinstance(other, ListItemStringWithLocation) and isinstance(other, ListItemString):
             return super().is_same(other)
 
-        return isinstance(other, ListItemStringWithPosition) \
+        return isinstance(other, ListItemStringWithLocation) \
             and self.location == other.location \
                 and super().is_same(other)
 
@@ -125,7 +125,7 @@ def _parse_variable_use_to_compose_list_item(s, loc, toks):
 
 def _parse_list_item_string_action(s, loc, toks):
     list_item_string = toks[0]
-    return ListItemStringWithPosition(list_item_string, loc)
+    return ListItemStringWithLocation(list_item_string, loc)
 
 def _parse_cmake_string_list_action(s, loc, toks):
     return CMakeStringList(toks)
