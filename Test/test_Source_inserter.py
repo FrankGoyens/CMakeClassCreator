@@ -8,7 +8,7 @@ from CMakeClassCreator import source_inserter, ast
 class TestSourceInserter(unittest.TestCase):
     def test_get_position_after_last_list_item(self):
         #This is based entirely on the last item's location
-        given_cmake_string_list = ast.CMakeStringList([ast.ListItemStringWithPosition("item1.cpp", -1), ast.VariableUseWithLocation("Sources", -1), ast.ListItemStringWithPosition("item2", 14)])
+        given_cmake_string_list = ast.CMakeStringList([ast.ListItemStringWithLocation("item1.cpp", -1), ast.VariableUseWithLocation("Sources", -1), ast.ListItemStringWithLocation("item2", 14)])
         self.assertEqual(source_inserter._get_position_after_last_list_item(given_cmake_string_list), 20)
         
 
