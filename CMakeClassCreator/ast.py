@@ -156,7 +156,7 @@ class Ast(object):
     def __init__(self):
         self._parser = Parser()
 
-        self._parser._cmake_stmt.parseWithTabs() #cmakae source may contain tabs, this ensures that match locations consider tabs as one character
+        self._parser._cmake_stmt.parseWithTabs() #cmake source may contain tabs, this ensures that match locations consider tabs as one character
 
         self._parser._standalone_variable_use.setParseAction(_parse_standalone_variable_use_action)
         self._parser._equivalent_variable_use_in_quotes.setParseAction(_parse_standalone_variable_use_in_quotes_action)
