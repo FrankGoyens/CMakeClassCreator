@@ -126,7 +126,10 @@ class TestAst(unittest.TestCase):
         givenAst = ast.Ast()
         result = givenAst.parse("target_sources(TabsPls PRIVATE file_linux.h file_linux.cpp ${TabsPls_Sources_Linux} PUBLIC linux_extras.h)")
         
-        expected_result = ast.TargetSources("TabsPls", ast.CMakeStringList([ast.ListItemStringWithPosition("file_linux.h", 31), ast.ListItemString("file_linux.cpp"), ast.VariableUse("TabsPls_Sources_Linux"), ast.ListItemString("linux_extras.h")]))
+        expected_result = ast.TargetSources("TabsPls", ast.CMakeStringList([ast.ListItemStringWithPosition("file_linux.h", 31), 
+            ast.ListItemStringWithPosition("file_linux.cpp", 44), 
+                ast.VariableUseWithLocation("TabsPls_Sources_Linux", 59), 
+                    ast.ListItemStringWithPosition("linux_extras.h", 91)]))
 
         self.assertTrue(list(result)[0].is_same(expected_result))
 
@@ -143,7 +146,6 @@ class TestAst(unittest.TestCase):
             + "target_sources(TabsPls PRIVATE windows_util.h windows_util.c)")
 
         given_ast = ast.Ast()
-        given_ast._parser._cmake_stmt.parseWithTabs()
         matches = given_ast.scan_all(given_source)
         self.assertEqual(len(matches), 4)
 
