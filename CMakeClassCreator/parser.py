@@ -1,4 +1,5 @@
 from pyparsing import *
+import copy
 
 class Parser(object):
     def __init__(self):
@@ -8,25 +9,29 @@ class Parser(object):
         self._variable_name = Word(alphas+"_", alphanums+"_")
 
         #'variable use' grammar
-        self._standalone_variable_use = "${" + self._variable_name + "}"
-        self._equivalent_variable_use_in_quotes = Literal('"') + self._standalone_variable_use + '"'
+        self._variable_use_terminator = Literal("}")
+        self._variable_use_in_quotes_terminator = Literal('"')
+        self._standalone_variable_use = "${" + self._variable_name + self._variable_use_terminator
+        self._equivalent_variable_use_in_quotes = Literal('"') + self._standalone_variable_use + NotAny(White()) + self._variable_use_in_quotes_terminator
 
-        any_standalone_variable_use = self._standalone_variable_use | self._equivalent_variable_use_in_quotes
+        self._any_standalone_variable_use = self._standalone_variable_use | self._equivalent_variable_use_in_quotes
 
+        self._compositional_variable_use = copy.deepcopy(self._any_standalone_variable_use)
         #this is not used to parse into anything meaningful, so they are combined into a single token. This makes this easily managed
         printables_except_rpar = printables.replace(')', '')
-        self._variable_use_to_compose_list_item = Combine(dblQuotedString + any_standalone_variable_use) | \
-                Combine(any_standalone_variable_use + dblQuotedString) | \
-                Combine(printables_except_rpar + any_standalone_variable_use) | \
-                Combine(any_standalone_variable_use + printables_except_rpar)
+        self._variable_use_to_compose_list_item = Combine(dblQuotedString + self._compositional_variable_use) | \
+                Combine(self._compositional_variable_use + dblQuotedString) | \
+                Combine(Word(printables_except_rpar) + self._compositional_variable_use) | \
+                Combine(self._compositional_variable_use + Word(printables_except_rpar))
 
-        variable_use_in_string_list = any_standalone_variable_use | self._variable_use_to_compose_list_item 
+
+        self._variable_use_in_string_list = self._variable_use_to_compose_list_item | self._any_standalone_variable_use
         
         #cmake's 'string list' grammar (used in most declarative cmake statements)
         self._string_list_item = dblQuotedString | Word(printables_except_rpar) 
         self._scope_specifier_keywords = Literal("PRIVATE") | Literal("PUBLIC") | Literal("INTERFACE")
 
-        cmake_any_list_item = NotAny(self._scope_specifier_keywords) + (variable_use_in_string_list | self._string_list_item)
+        cmake_any_list_item = NotAny(self._scope_specifier_keywords) + (self._variable_use_in_string_list | self._string_list_item)
         self._cmake_list_content = OneOrMore(cmake_any_list_item)
         self._cmake_list_content.ignore(self._comment_stmt)
 
@@ -40,7 +45,7 @@ class Parser(object):
 
         #https://cmake.org/cmake/help/latest/command/set.html#set-environment-variable
         #We need to define this one to be able to ignore it
-        self._set_env_variable_stmt = self._set_keyword + "(" + Literal("ENV") \
+        self._set_env_variable_stmt = self._set_keyword + "(" + Literal("ENV") + "{" + self._variable_name + "}" \
                 + self._cmake_list_content + ")"
 
         self._add_library_keyword = CaselessLiteral("add_library")
@@ -77,6 +82,4 @@ class Parser(object):
         #https://cmake.org/cmake/help/latest/command/target_sources.html
         self._target_sources_stmt = self._target_sources_keyword + "(" + self._executable_name + OneOrMore(self._scope_specifier_keywords + self._cmake_list_content) + ")"
 
-        self._cmake_stmt = self._set_normal_variable_stmt | self._add_library_stmt | self._add_object_library_stmt | self._add_normal_executable_stmt | self._target_sources_stmt
-
-        self._cmake_stmt.ignore(self._set_env_variable_stmt)
+        self._cmake_stmt = Suppress(self._set_env_variable_stmt) | self._set_normal_variable_stmt | self._add_library_stmt | self._add_object_library_stmt | self._add_normal_executable_stmt | self._target_sources_stmt
