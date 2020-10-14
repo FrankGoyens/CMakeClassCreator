@@ -1,6 +1,6 @@
 import unittest
 import context
-
+import pyparsing
 
 from CMakeClassCreator.parser import Parser
 
@@ -50,7 +50,7 @@ class ParserTest(unittest.TestCase):
         givenParser = Parser()
 
         result = givenParser._set_env_variable_stmt.parseString(givenString)
-        self.assertEqual(list(result), ["set", "(", "ENV", "{ENV_VAR_NAME}", "value", ")"])
+        self.assertEqual(list(result), ["set", "(", "ENV", "{", "ENV_VAR_NAME", "}", "value", ")"])
     
     def test_add_library_stmt(self):
         givenString = "add_library(TabsPlsLib main.cpp)"
@@ -160,6 +160,39 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(list(givenParser._target_sources_stmt.searchString("target_sources(TabsPls interface.hpp)")), [])
         self.assertEqual(list(givenParser._target_sources_stmt.searchString("target_sources(TabsPls PRIVATE interface.hpp")), [])
         self.assertEqual(list(givenParser._target_sources_stmt.searchString("target_sources_(TabsPls PRIVATE interface.hpp)")), [])
+
+    def test_equivalent_variable_use_in_quotes(self):
+        given_parser = Parser()
+
+        given_parser._equivalent_variable_use_in_quotes.parseString('"${sources}"')
+        self.assertRaises(pyparsing.exceptions.ParseException, given_parser._equivalent_variable_use_in_quotes.parseString, '"${sources} "')
+        self.assertRaises(pyparsing.exceptions.ParseException, given_parser._equivalent_variable_use_in_quotes.parseString, '"${dir}/subdir"')
+
+    def test_detect_variable_use_to_compose_list_item(self):
+        given_parser = Parser()
+
+        matched_variable_use_to_compose_list_item = [False]
+        def match_variable_use_to_compose_list_item():
+            matched_variable_use_to_compose_list_item[0] = True
+        matched_variable_use = [False]
+        def match_variable_use():
+            matched_variable_use[0] = True
+
+        given_parser._variable_use_to_compose_list_item.setParseAction(match_variable_use_to_compose_list_item)
+        given_parser._any_standalone_variable_use.setParseAction(match_variable_use)
+
+        given_parser._variable_use_in_string_list.parseString("${dir}/subdir/file.cpp")
+
+        self.assertTrue(matched_variable_use_to_compose_list_item[0])
+        self.assertFalse(matched_variable_use[0])
+
+        matched_variable_use_to_compose_list_item[0], matched_variable_use[0] = False, False
+
+        given_parser._variable_use_in_string_list.parseString("${dir}")
+
+        self.assertFalse(matched_variable_use_to_compose_list_item[0])
+        self.assertTrue(matched_variable_use[0])
+
 
 if __name__ == '__main__':
     unittest.main()

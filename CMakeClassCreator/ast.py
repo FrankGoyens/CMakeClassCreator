@@ -6,7 +6,16 @@ class _LocationTrait(ABC):
     def get_location(self):
         pass
 
+class _EndLocationTrait(ABC):
+    @abstractmethod
+    def get_end_location(self):
+        pass
+
 ### AST components ###
+class VariableUseTerminator(object):
+    def __init__(self, location):
+        self.location = location
+
 class VariableUse(object):
     def __init__(self, var_name):
         self.var_name = var_name
@@ -31,6 +40,14 @@ class VariableUseWithLocation(VariableUse, _LocationTrait):
     def get_location(self):
         return self.location
 
+class VariableUseWithStartAndEndLocation(VariableUseWithLocation, _EndLocationTrait):
+    def __init__(self, var_name, location, terminator):
+        super().__init__(var_name, location)
+        self.terminator = terminator
+
+    def get_end_location(self):
+        return self.terminator.location
+
 class ListItemString(object):
     def __init__(self, list_item_string):
         self.list_item_string = list_item_string
@@ -39,7 +56,7 @@ class ListItemString(object):
         return isinstance(other, ListItemString) \
             and self.list_item_string == other.list_item_string 
                 
-class ListItemStringWithLocation(ListItemString, _LocationTrait):
+class ListItemStringWithLocation(ListItemString, _LocationTrait, _EndLocationTrait):
     def __init__(self, list_item_string, location):
         super().__init__(list_item_string)
         self.location = location
@@ -54,6 +71,9 @@ class ListItemStringWithLocation(ListItemString, _LocationTrait):
 
     def get_location(self):
         return self.location
+
+    def get_end_location(self):
+        return self.location + len(self.list_item_string)
 
 class CMakeStringList(object):
     def __init__(self, items):
@@ -113,9 +133,16 @@ class TargetSources(object):
             and self.cmake_string_list.is_same(other.cmake_string_list)
 ### AST components END ###
 
+def _parse_variable_use_terminator(s, loc, toks):
+    return VariableUseTerminator(loc)
+
+def _parse_variable_use_in_quotes_terminator(s, loc, toks):
+    return VariableUseTerminator(loc+1) #also consider the quote after the '}'
+
 def _parse_standalone_variable_use_action(s, loc, toks):
     var_name = toks[1]
-    return VariableUseWithLocation(var_name, loc)
+    terminator = toks[2]
+    return VariableUseWithStartAndEndLocation(var_name, loc, terminator)
 
 def _parse_standalone_variable_use_in_quotes_action(s, loc, toks):
     return toks[1]
@@ -157,6 +184,9 @@ class Ast(object):
         self._parser = Parser()
 
         self._parser._cmake_stmt.parseWithTabs() #cmake source may contain tabs, this ensures that match locations consider tabs as one character
+
+        self._parser._variable_use_terminator.setParseAction(_parse_variable_use_terminator)
+        self._parser._variable_use_in_quotes_terminator.setParseAction(_parse_variable_use_in_quotes_terminator)
 
         self._parser._standalone_variable_use.setParseAction(_parse_standalone_variable_use_action)
         self._parser._equivalent_variable_use_in_quotes.setParseAction(_parse_standalone_variable_use_in_quotes_action)

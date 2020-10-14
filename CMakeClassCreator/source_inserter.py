@@ -1,4 +1,4 @@
-import CMakeClassCreator.ast as ast
+from CMakeClassCreator import whitespace_inserter, ast
 from abc import ABC, abstractmethod
 
 class SourceInserterException(Exception):
@@ -8,6 +8,15 @@ class InsertAction(object):
     def __init__(self, position, content):
         self.position = position
         self.content = content
+    
+    @property
+    def whitespace_prefix(self):
+        whitespace_length = len(self.content) - len(self.content.lstrip())
+        return self.content[:whitespace_length]
+
+    @whitespace_prefix.setter
+    def whitespace_prefix(self, value):
+        self.content = value + self.content.lstrip()
 
     def do(self, full_cmake_source):
         content_before = full_cmake_source[:self.position-1]
@@ -71,12 +80,11 @@ class _TargetSourcesInserter(_TargetNameTrait, __SingleCMakeListInserter):
 
 def _get_position_after_last_list_item(cmake_string_list_ast):
     last_item = cmake_string_list_ast.items[-1]
-    return last_item.location + 1 + len(last_item.list_item_string)
+    return last_item.get_end_location() + 1
 
 def insert_source_item_directly_in_target(cmake_ast, source_item, cmake_target):
     """ Sets up the action to add a source file directly to the add_{library|executable} statement of a given target """
-    inserter = _make_inserter_for_target(cmake_ast, cmake_target)
-    return inserter.insert_source(source_item)
+    return _make_inserter_for_target(cmake_ast, cmake_target).insert_source(source_item)
 
 def _make_inserter_for_target(cmake_ast, cmake_target):
     add_library_ast_items = [ast_item for ast_item in _get_all_library_targets(cmake_ast) if ast_item.library_name == cmake_target]
@@ -101,14 +109,16 @@ def _get_all_executable_targets(cmake_ast):
 
 def insert_source_item_in_variable_from_target(cmake_ast, source_item, cmake_target, variable_name):
     """ Sets up the action to add a source file to the given variable of the given target """
+    return _make_source_inserter_for_item_in_variable_from_target(cmake_ast, cmake_target, variable_name).insert_source(source_item)
+
+def _make_source_inserter_for_item_in_variable_from_target(cmake_ast, cmake_target, variable_name):
     target_inserter = _make_inserter_for_target(cmake_ast, cmake_target)
     relevant_variable_declarations_in_target = [declaration for declaration in target_inserter.get_cmake_list_ast().items if isinstance(declaration, ast.VariableUse) and declaration.var_name == variable_name]
 
     if len(relevant_variable_declarations_in_target) == 0:
         raise SourceInserterException("The variable {0} is not used in target {1}".format(variable_name, cmake_target))
 
-    variable_inserter = _make_inserter_for_variable_declaration(cmake_ast, variable_name)
-    return variable_inserter.insert_source(source_item)
+    return _make_inserter_for_variable_declaration(cmake_ast, variable_name)
 
 def insert_source_item_in_variable(cmake_ast, source_item, variable_name):
     """ Sets up the action to add a source file to the given variable
@@ -139,27 +149,36 @@ def insert_source_item_next_to_other_source(cmake_ast, source_item, reference_it
 
     The reference source file should already exist in the cmake source
     """
+    return _make_inserter_for_item_next_to_other_source(cmake_ast, reference_item).insert_source(source_item)
+
+def insert_source_considering_existing_whitespace(inserter, source_item, full_cmake_source):
+    """ The source insertion considers the whitespace that is present in the cmake source """
+    insert_action = inserter.insert_source(source_item)
+    if hasattr(inserter, "get_cmake_list_ast"):
+        whitespace_inserter.enhance_insert_action_with_whitespace_used_in_cmake_string_list(full_cmake_source, insert_action, inserter.get_cmake_list_ast())
+    return insert_action
+
+def _make_inserter_for_item_next_to_other_source(cmake_ast, reference_item):
     try:
         target = _find_reference_directly_in_target_declaration(cmake_ast, reference_item)
         inserter =  _AddLibraryInserter(target) if isinstance(target, ast.AddLibrary) else _AddExecutableInserter(target)
-        return inserter.insert_source(source_item)
+        return inserter
     except SourceInserterException:
         pass
 
     try:
         declaration = _find_reference_in_variable_declaration(cmake_ast, reference_item)
-        return _SetNormalVariableInserter(declaration).insert_source(source_item)
+        return _SetNormalVariableInserter(declaration)
     except SourceInserterException:
         pass
 
     try:
         target_sources_stmt = _find_reference_in_target_sources_stmt(cmake_ast, reference_item)
-        return _TargetSourcesInserter(target_sources_stmt).insert_source(source_item)
+        return _TargetSourcesInserter(target_sources_stmt)
     except SourceInserterException:
         pass
 
     raise SourceInserterException("The reference item {} is not declared in any (supported) cmake statement".format(reference_item))
-
 
 def _find_reference_directly_in_target_declaration(cmake_ast, reference_item):
     all_targets = _get_all_library_targets(cmake_ast) + _get_all_executable_targets(cmake_ast)

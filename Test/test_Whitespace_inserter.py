@@ -12,7 +12,7 @@ class TestWhitespaceInserter(unittest.TestCase):
         given_source = "abcdefghijklmnopqrstuvwxyz"
 
         result_content = whitespace_inserter.get_content_between_second_to_last_and_last_item(given_source, given_ast)
-        self.assertEqual(result_content, "klmnopqrst")
+        self.assertEqual(result_content, "t")
 
     def test_get_content_between_second_to_last_and_last_item_with_only_one_item(self):
         given_ast = ast.CMakeStringList([ast.ListItemString("file1.cpp")])
@@ -23,3 +23,4 @@ class TestWhitespaceInserter(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+    

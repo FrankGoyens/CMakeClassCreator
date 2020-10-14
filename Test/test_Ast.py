@@ -164,6 +164,19 @@ class TestAst(unittest.TestCase):
         expected_fourth_match = ast.TargetSources("TabsPls", 
             ast.CMakeStringList([ast.ListItemStringWithLocation("windows_util.h", 215), ast.ListItemStringWithLocation("windows_util.c", 230)]))
         self.assertTrue(list(matches[3])[0].is_same(expected_fourth_match))
+    
+    def test_variable_use_with_terminator(self):
+        given_ast = ast.Ast()
+
+        result = given_ast._parser._variable_use_terminator.parseString("}")
+        self.assertEqual(list(result)[0].location, 0)
+
+        result = given_ast._parser._standalone_variable_use.parseString("${sources}")
+        self.assertEqual(list(result)[0].get_end_location(), 9)
+
+        result = given_ast._parser._equivalent_variable_use_in_quotes.parseString('"${sources}"')
+        self.assertEqual(list(result)[0].get_end_location(), 10)
+
 
 
 if __name__ == '__main__':
