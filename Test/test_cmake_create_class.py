@@ -74,7 +74,42 @@ class TestCMakeCreateClass(unittest.TestCase):
 
         given_args.reference_class = "fakeref"
         cmake_create_class.validate_args(given_args)
+    
+    def test_class_mode_source_cant_be_path(self):
+        given_args = FakeArgs()
 
+        given_args.name = "source/file.cpp"
+        given_args.reference_class = "source/dir.cpp"
+
+        self.assertRaises(cmake_create_class.CMakeClassCreatorException, cmake_create_class.validate_args, given_args)
+
+        given_args.name = "file.cpp"
+        cmake_create_class.validate_args(given_args)
+
+    def test_adding_single_file_may_be_path_unless_using_reference(self):
+        given_args = FakeArgs()
+
+        given_args.single_file = True
+        given_args.name = "source/file.cpp"
+        given_args.variable = "sources"
+
+        cmake_create_class.validate_args(given_args)
+
+        given_args.reference_class = "source/dir.cpp"
+        self.assertRaises(cmake_create_class.CMakeClassCreatorException, cmake_create_class.validate_args, given_args)
+
+    def test_paths_with_backslashes_are_invalid_in_any_configuration(self):
+        given_args = FakeArgs()
+
+        given_args.name = "source\\file.cpp"
+        given_args.reference_class = "dir.cpp"
+
+        self.assertRaises(cmake_create_class.CMakeClassCreatorException, cmake_create_class.validate_args, given_args)
+
+        given_args.name = "file.cpp"
+        given_args.reference_class = "source\\dir.cpp"
+
+        self.assertRaises(cmake_create_class.CMakeClassCreatorException, cmake_create_class.validate_args, given_args)        
 
 if __name__ == "__main__":
     unittest.main()

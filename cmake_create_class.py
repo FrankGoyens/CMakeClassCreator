@@ -2,6 +2,8 @@ import argparse
 
 from collections import namedtuple
 
+from CMakeClassCreator import list_item_string_path
+
 class CMakeClassCreatorException(Exception):
     pass
 
@@ -19,6 +21,9 @@ def create_arg_parser():
     return parser
 
 def validate_args(args):
+    if "\\" in args.name or args.reference_class and "\\" in args.reference_class:
+        raise CMakeClassCreatorException("It is not allowed to use backslashes in the class name or reference class.")
+
     if using_single_file_mode(args):
         validate_args_single_file_mode(args)
     else:
@@ -40,6 +45,8 @@ def validate_args_single_file_mode(args):
 def validate_args_class_mode(args):
     if not args.reference_class:
         raise CMakeClassCreatorException("When adding a class, a reference class is required. Please specify one with -rc, --reference-class.")
+    if list_item_string_path.is_cmake_path(args.name):
+        raise CMakeClassCreatorException("When adding a class, the name of the class '{}' can't be a path.".format(args.name))
 
 if __name__ == "__main__":
     args = create_arg_parser().parse_args()
