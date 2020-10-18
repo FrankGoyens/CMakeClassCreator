@@ -193,6 +193,14 @@ class ParserTest(unittest.TestCase):
         self.assertFalse(matched_variable_use_to_compose_list_item[0])
         self.assertTrue(matched_variable_use[0])
 
+    def test_cmake_stmt_ignores_comment(self):
+        given_parser = Parser()
+        given_source = "#this is a nice statement\nset(varname file1 file2)"
+        
+        results = given_parser._cmake_stmt.searchString(given_source)
+        
+        self.assertEqual(len(results), 1)
+        self.assertEqual(list(results[0]), ["set", "(", "varname", "file1", "file2", ")"])
 
 if __name__ == '__main__':
     unittest.main()
