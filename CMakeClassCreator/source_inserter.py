@@ -219,7 +219,7 @@ def _find_reference_in_target_sources_stmt(cmake_ast, reference_item):
 
 def _contains_source_item(cmake_string_list, source_item):
     try:
-        next(list_item for list_item in cmake_string_list.items if isinstance(list_item, ast.ListItemString) and list_item.list_item_string == source_item)
+        next(list_item for list_item in cmake_string_list.items if isinstance(list_item, ast.ListItemString) and source_item == list_item.list_item_string)
         return True
     except StopIteration:
         return False

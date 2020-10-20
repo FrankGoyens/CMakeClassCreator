@@ -23,5 +23,17 @@ class TestListItemStringPath(unittest.TestCase):
     def test_interpret_list_item_string_requires_list_item_string(self):
         self.assertRaises(list_item_string_path.ListItemStringAsPathException, list_item_string_path.interpret_list_item_string_as_path, None)
 
+    def test_path_aware_list_item_string_equality(self):
+        given_reference_source = "header.h"
+        given_cmake_string_list = "include/testlib/header.h"
+        self.assertEqual(list_item_string_path.PathAwareListItemString(given_reference_source), given_cmake_string_list)
+        given_cmake_string_list = "include/testlib/other_header.h"
+        self.assertNotEqual(list_item_string_path.PathAwareListItemString(given_reference_source), given_cmake_string_list)
+
+    def test_path_aware_list_item_string_to_string(self):
+        given_reference_source = "header.h"
+        path_aware_reference = list_item_string_path.PathAwareListItemString(given_reference_source)
+        self.assertEqual(str(path_aware_reference), "header.h")
+
 if __name__ == "__main__":
     unittest.main()
