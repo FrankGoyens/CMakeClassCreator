@@ -4,7 +4,7 @@ import unittest
 import context
 
 from CMakeClassCreator import source_inserter, ast, list_item_string_path
-import collections as col
+from collections import namedtuple
 
 class TestSourceInserter(unittest.TestCase):
     def test_get_position_after_last_list_item_string(self):
@@ -134,7 +134,7 @@ class TestSourceInserter(unittest.TestCase):
         self.assertEqual(given_insert_action.content, "hellocontent")
 
     def test_insert_source_considering_existing_whitespace(self):
-        given_inserter = col.namedtuple("FakeInserter", ["get_cmake_list_ast", "insert_source"])
+        given_inserter = namedtuple("FakeInserter", ["get_cmake_list_ast", "insert_source"])
         given_inserter.get_cmake_list_ast = lambda: ast.CMakeStringList([ast.ListItemStringWithLocation("file1.cpp", 0), ast.ListItemStringWithLocation("file2.cpp", 11)])
         given_inserter.insert_source = lambda source_item: source_inserter.InsertAction(21, " {}".format(source_item))
 
@@ -152,6 +152,22 @@ class TestSourceInserter(unittest.TestCase):
         self.assertEqual(insert_action.position, 32)
         self.assertEqual(insert_action.content, " file.cpp")
         self.assertEqual(insert_action.do(given_source), "add_executable(TabsPls Main.cpp file.cpp)")
+    
+    def test_add_path_prefix_to_insert_action(self):
+        given_insert_action = source_inserter.InsertAction(0, " header.h")
+        path_provider = namedtuple("PathProvider", ["get_matched_reference_item"])
+        path_provider.get_matched_reference_item = lambda: ast.ListItemString("include/testlib/other_header.h")
+
+        source_inserter._add_path_prefix_to_insert_action(path_provider, given_insert_action)
+        self.assertEqual(given_insert_action.content, " include/testlib/header.h")
+
+    def test_add_empty_path_prefix_to_insert_action(self):
+        given_insert_action = source_inserter.InsertAction(0, " header.h")
+        path_provider = namedtuple("PathProvider", ["get_matched_reference_item"])
+        path_provider.get_matched_reference_item = lambda: ast.ListItemString("other_header.h")
+
+        source_inserter._add_path_prefix_to_insert_action(path_provider, given_insert_action)
+        self.assertEqual(given_insert_action.content, " header.h")
 
 if __name__ == '__main__':
     unittest.main()
