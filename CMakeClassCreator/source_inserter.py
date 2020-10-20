@@ -1,4 +1,4 @@
-from CMakeClassCreator import whitespace_inserter, ast
+from CMakeClassCreator import whitespace_inserter, ast, list_item_string_path
 from abc import ABC, abstractmethod
 
 class SourceInserterException(Exception):
@@ -36,6 +36,11 @@ class _TargetNameTrait(ABC):
 class _SingleCMakeListAstTrait(ABC):
     @abstractmethod
     def get_cmake_list_ast(self):
+        pass
+
+class _ReferenceMatchProviderTrait(ABC):
+    @abstractmethod
+    def get_matched_reference_item(self):
         pass
 
 class __SingleCMakeListInserter(_SourceInsertTrait, _SingleCMakeListAstTrait):
@@ -77,6 +82,37 @@ class _TargetSourcesInserter(_TargetNameTrait, __SingleCMakeListInserter):
 
     def get_name(self):
         return self.target_sources_ast.target_name
+
+class _InserterWithMatchedReference(_SourceInsertTrait, _ReferenceMatchProviderTrait):
+    def __init__(self, inserter, matched_reference_ast):
+        self.inserter = inserter
+        self.matched_reference_ast = matched_reference_ast
+
+    def get_matched_reference_item(self):
+        return self.matched_reference_ast
+
+    def insert_source(self, source_item):
+        insert_action = self.inserter.insert_source(source_item)
+        _add_path_prefix_to_insert_action(self, insert_action)
+        return insert_action
+
+def _add_path_prefix_to_insert_action(inserter_with_reference, insert_action):
+    if not hasattr(inserter_with_reference.get_matched_reference_item(), "list_item_string"):
+        return #only list item strings are supported at this point
+
+    try:
+        reference_parent_path = list_item_string_path.interpret_list_item_string_as_path(inserter_with_reference.get_matched_reference_item()).parent_path
+        if reference_parent_path == "":
+            return 
+        
+        current_whitespace_prefix = insert_action.whitespace_prefix
+        insert_action.whitespace_prefix = ""
+        insert_action.content = \
+            list_item_string_path.strip_trailing_separator(reference_parent_path) \
+                + list_item_string_path.separator + insert_action.content
+        insert_action.whitespace_prefix = current_whitespace_prefix
+    except list_item_string_path.ListItemStringAsPathException:
+        pass
 
 def _get_position_after_last_list_item(cmake_string_list_ast):
     last_item = cmake_string_list_ast.items[-1]
@@ -160,21 +196,21 @@ def insert_source_considering_existing_whitespace(inserter, source_item, full_cm
 
 def _make_inserter_for_item_next_to_other_source(cmake_ast, reference_item):
     try:
-        target = _find_reference_directly_in_target_declaration(cmake_ast, reference_item)
-        inserter =  _AddLibraryInserter(target) if isinstance(target, ast.AddLibrary) else _AddExecutableInserter(target)
-        return inserter
+        target, reference_ast = _find_reference_directly_in_target_declaration(cmake_ast, reference_item)
+        inserter = _AddLibraryInserter(target) if isinstance(target, ast.AddLibrary) else _AddExecutableInserter(target)
+        return _InserterWithMatchedReference(inserter, reference_ast)
     except SourceInserterException:
         pass
 
     try:
-        declaration = _find_reference_in_variable_declaration(cmake_ast, reference_item)
-        return _SetNormalVariableInserter(declaration)
+        declaration, reference_ast = _find_reference_in_variable_declaration(cmake_ast, reference_item)
+        return _InserterWithMatchedReference(_SetNormalVariableInserter(declaration), reference_ast)
     except SourceInserterException:
         pass
 
     try:
-        target_sources_stmt = _find_reference_in_target_sources_stmt(cmake_ast, reference_item)
-        return _TargetSourcesInserter(target_sources_stmt)
+        target_sources_stmt, reference_ast = _find_reference_in_target_sources_stmt(cmake_ast, reference_item)
+        return _InserterWithMatchedReference(_TargetSourcesInserter(target_sources_stmt), reference_ast)
     except SourceInserterException:
         pass
 
@@ -183,43 +219,56 @@ def _make_inserter_for_item_next_to_other_source(cmake_ast, reference_item):
 def _find_reference_directly_in_target_declaration(cmake_ast, reference_item):
     all_targets = _get_all_library_targets(cmake_ast) + _get_all_executable_targets(cmake_ast)
     cmake_lists_with_target = [(target.cmake_string_list, target) for target in all_targets]
-    relevant_cmake_lists_with_target = [cmake_lists_with_target for cmake_lists_with_target in cmake_lists_with_target if _contains_source_item(cmake_lists_with_target[0], reference_item)]
+    
+    relevant_cmake_lists_with_target_and_reference = []
+    
+    for cmake_list_with_target in cmake_lists_with_target:
+        reference_ast = _find_source_item(cmake_list_with_target[0], reference_item)
+        if reference_ast is not None:
+            relevant_cmake_lists_with_target_and_reference.append((*cmake_list_with_target, reference_ast))
 
-    if len(relevant_cmake_lists_with_target) == 0:
+    if len(relevant_cmake_lists_with_target_and_reference) == 0:
         raise SourceInserterException("The reference item {} is not declared in a target".format(reference_item))
-    if len(relevant_cmake_lists_with_target) > 1:
+    if len(relevant_cmake_lists_with_target_and_reference) > 1:
         raise SourceInserterException("The reference item {0} is defined in multiple targets: {1}".format(reference_item, \
             [cmake_list_with_target[0] for cmake_list_with_target in cmake_lists_with_target]))
 
-    return relevant_cmake_lists_with_target[0][1]
+    return relevant_cmake_lists_with_target_and_reference[0][1], relevant_cmake_lists_with_target_and_reference[0][2]
 
 def _find_reference_in_variable_declaration(cmake_ast, reference_item):
-    relevant_variable_declarations = [declaration for declaration in cmake_ast if isinstance(declaration, ast.SetNormalVariable) \
-        and _contains_source_item(declaration.cmake_string_list, reference_item)]
+    relevant_variable_declarations_and_reference = []
+    for declaration in cmake_ast:
+        if isinstance(declaration, ast.SetNormalVariable):
+            reference_ast = _find_source_item(declaration.cmake_string_list, reference_item)
+            if reference_ast is not None:
+                relevant_variable_declarations_and_reference.append((declaration, reference_ast))
     
-    if len(relevant_variable_declarations) == 0:
+    if len(relevant_variable_declarations_and_reference) == 0:
         raise SourceInserterException("The reference item {} is not declared in a variable declaration".format(reference_item))
-    if len(relevant_variable_declarations) > 1:
+    if len(relevant_variable_declarations_and_reference) > 1:
         raise SourceInserterException("The reference item {0} is defined in multiple variable declarations: {1}".format(reference_item, \
-            [declaration.var_name for declaration in relevant_variable_declarations]))
+            [declaration_and_reference[0].var_name for declaration_and_reference in relevant_variable_declarations_and_reference]))
 
-    return relevant_variable_declarations[0]
+    return relevant_variable_declarations_and_reference[0][0], relevant_variable_declarations_and_reference[0][1]
 
 def _find_reference_in_target_sources_stmt(cmake_ast, reference_item):
-    relevant_target_sources = [target_sources_stmt for target_sources_stmt in cmake_ast if isinstance(target_sources_stmt, ast.TargetSources) \
-        and _contains_source_item(target_sources_stmt.cmake_string_list, reference_item)]
+    relevant_target_sources_and_reference = []
+    for target_sources_stmt in cmake_ast:
+        if isinstance(target_sources_stmt, ast.TargetSources):
+            reference_ast = _find_source_item(target_sources_stmt.cmake_string_list, reference_item)
+            if reference_ast is not None:
+                relevant_target_sources_and_reference.append((target_sources_stmt, reference_ast))
     
-    if len(relevant_target_sources) == 0:
+    if len(relevant_target_sources_and_reference) == 0:
         raise SourceInserterException("The reference item {} is not declared in a target_sources statement".format(reference_item))
-    if len(relevant_target_sources) > 1:
+    if len(relevant_target_sources_and_reference) > 1:
         raise SourceInserterException("The reference item {0} is defined in multiple target_sources statements: {1}".format(reference_item, \
-            ["target_sources({})".format(target_sources_stmt.target_name) for target_sources_stmt in relevant_target_sources]))
+            ["target_sources({})".format(target_sources_stmt_and_reference[0].target_name) for target_sources_stmt_and_reference in relevant_target_sources_and_reference]))
 
-    return relevant_target_sources[0]
+    return relevant_target_sources_and_reference[0][0], relevant_target_sources_and_reference[0][1]
 
-def _contains_source_item(cmake_string_list, source_item):
+def _find_source_item(cmake_string_list, source_item):
     try:
-        next(list_item for list_item in cmake_string_list.items if isinstance(list_item, ast.ListItemString) and source_item == list_item.list_item_string)
-        return True
+        return next(list_item for list_item in cmake_string_list.items if isinstance(list_item, ast.ListItemString) and source_item == list_item.list_item_string)
     except StopIteration:
-        return False
+        return None

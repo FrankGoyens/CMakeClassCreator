@@ -21,8 +21,11 @@ def create_arg_parser():
     return parser
 
 def validate_args(args):
-    if "\\" in args.name or args.reference_class and "\\" in args.reference_class:
-        raise CMakeClassCreatorException("It is not allowed to use backslashes in the class name or reference class.")
+    if "\\" in args.name:
+        raise CMakeClassCreatorException("It is not allowed to use backslashes in the class name.")
+
+    if args.reference_class and "\\" in args.reference_class:
+        raise CMakeClassCreatorException("It is not allowed to use backslashes in the reference class.")
 
     if using_single_file_mode(args):
         validate_args_single_file_mode(args)
