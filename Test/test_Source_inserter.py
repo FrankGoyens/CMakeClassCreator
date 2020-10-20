@@ -3,7 +3,7 @@ import unittest
 
 import context
 
-from CMakeClassCreator import source_inserter, ast
+from CMakeClassCreator import source_inserter, ast, list_item_string_path
 import collections as col
 
 class TestSourceInserter(unittest.TestCase):
@@ -142,6 +142,16 @@ class TestSourceInserter(unittest.TestCase):
 
         insert_action = source_inserter.insert_source_considering_existing_whitespace(given_inserter, "file3.cpp", given_full_source)
         self.assertEqual(insert_action.do(given_full_source), "file1.cpp\n\tfile2.cpp\n\tfile3.cpp")
+
+    def test_insert_next_to_other_source_directly_at_target_using_path_aware_reference(self):
+        given_ast = ast.Ast()
+        given_source = "add_executable(TabsPls Main.cpp)"
+        given_cmake_ast = given_ast.parse(given_source)
+
+        insert_action = source_inserter.insert_source_item_next_to_other_source(given_cmake_ast, "file.cpp", list_item_string_path.PathAwareListItemString("Main.cpp"))
+        self.assertEqual(insert_action.position, 32)
+        self.assertEqual(insert_action.content, " file.cpp")
+        self.assertEqual(insert_action.do(given_source), "add_executable(TabsPls Main.cpp file.cpp)")
 
 if __name__ == '__main__':
     unittest.main()

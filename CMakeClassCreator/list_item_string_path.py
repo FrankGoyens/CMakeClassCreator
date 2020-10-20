@@ -10,6 +10,23 @@ class _FilenameProviderTrait(ABC):
     def source_file_name(self):
         pass
 
+class PathAwareListItemString(object):
+    """ Use this as a reference source in the source_inserter module in order to compare file names instead of te complete paths """
+    def __init__(self, list_item_string_reference):
+        self.list_item_string_reference = list_item_string_reference
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.list_item_string_reference == \
+                ListItemStringAsPath(other).source_file_name
+        return super().__eq__(other)
+    
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __str__(self):
+        return self.list_item_string_reference
+
 class ListItemStringAsPath(_FilenameProviderTrait):
     def __init__(self, list_item_string):
         self.list_item_string = list_item_string
