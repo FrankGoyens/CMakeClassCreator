@@ -50,9 +50,12 @@ class __SingleCMakeListInserter(_SourceInsertTrait, _SingleCMakeListAstTrait):
     def get_cmake_list_ast(self):
         return self.cmake_string_list
 
+    @property
+    def position(self):
+        return _get_position_after_last_list_item(self.cmake_string_list)
+
     def insert_source(self, source_item):
-        position = _get_position_after_last_list_item(self.cmake_string_list)
-        return InsertAction(position, " " + source_item)
+        return InsertAction(self.position, " " + source_item)
 
 class _AddLibraryInserter(_TargetNameTrait, __SingleCMakeListInserter):
     def __init__(self, add_library_ast):

@@ -54,6 +54,10 @@ class TestListItemStringPath(unittest.TestCase):
         path_aware_reference = list_item_string_path.PathAwareListItemString(given_reference_source)
         self.assertEqual(str(path_aware_reference), "header.h")
 
+    def test_path_aware_list_item_string_append_string(self):
+        given_reference_source = "class"
+        self.assertEqual(list_item_string_path.PathAwareListItemString(given_reference_source) + ".h", "class.h")
+
     def test_strip_trailing_separator(self):
         self.assertEqual(list_item_string_path.strip_trailing_separator("src/"), "src")
         self.assertEqual(list_item_string_path.strip_trailing_separator("src//"), "src")
