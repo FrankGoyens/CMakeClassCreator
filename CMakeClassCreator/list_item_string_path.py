@@ -34,6 +34,14 @@ class PathAwareListItemString(object):
     def __str__(self):
         return self.list_item_string_reference
 
+    def __add__(self, other):
+        if isinstance(other, PathAwareListItemString):
+            return PathAwareListItemString(self.list_item_string_reference + other.list_item_string_reference)
+        elif isinstance(other, str):
+            return PathAwareListItemString(self.list_item_string_reference + other)
+        else:
+            return super().__add__(other)
+
 class ListItemStringAsPath(_FilenameProviderTrait, _ParentPathProviderTrait):
     def __init__(self, list_item_string):
         self.list_item_string = list_item_string
