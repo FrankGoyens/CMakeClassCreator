@@ -8,7 +8,7 @@ _header_extensions = [".hpp", ".h", ".hh", ".h++", ".hpp", ".hxx"]
 
 def insert_class_next_to_other_class(cmake_ast, class_name, reference_class_name):
     def inserter_and_source_to_action_considering_whitespace(inserter_with_reference, extension):
-        return inserter.insert_source(class_name + extension)
+        return inserter_with_reference.inserter.insert_source(class_name + extension)
 
     return _insert_class_next_to_other_class_with_inserter_enhancement(cmake_ast, class_name, reference_class_name, \
         inserter_and_source_to_action_considering_whitespace)
