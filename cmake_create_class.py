@@ -2,7 +2,7 @@ import argparse, os, pyparsing, sys
 
 from collections import namedtuple
 
-from CMakeClassCreator import list_item_string_path, class_inserter, ast
+from CMakeClassCreator import list_item_string_path, class_inserter, ast, source_inserter
 
 class CMakeClassCreatorException(Exception):
     pass
@@ -39,11 +39,18 @@ def validate_args_single_file_mode(args):
     if args.reference_class:
         if args.variable or args.target:
             raise CMakeClassCreatorException("In single file mode, it is not allowed to specify a reference class and also a variable or target.")
+        if list_item_string_path.is_cmake_path(args.name):
+            raise CMakeClassCreatorException("In single file mode, when specifying a reference, the source name can't be a path.")
+        return lambda args: insert_single_source_next_to_reference(args.cmakelists, args.name, args.reference_class)
     else:
         if not args.variable and not args.target:
             raise CMakeClassCreatorException("In single file mode, please specify a cmake variable or a cmake target using -var, --variable or -t, --target respectively.")
         if args.variable and args.target:
             raise CMakeClassCreatorException("In single file mode, it is not allowed to specify both a variable and a target.")
+        if args.variable:
+            return lambda args: insert_single_source_in_variable(args.cmakelists, args.name, args.variable)
+        if args.target:
+            return lambda args: insert_single_source_in_target(args.cmakelists, args.name, args.target)
 
 def validate_args_class_mode(args):
     if not args.reference_class:
@@ -54,13 +61,24 @@ def validate_args_class_mode(args):
     return lambda args: create_class(args.cmakelists, args.name, args.reference_class)
 
 def create_class(cmakelists_path, class_name, reference_class_name):
+    full_cmake_source = _read_cmakelists_contents(cmakelists_path)
+    
+    full_cmake_ast = _parse_cmakelists_contents(full_cmake_source)
+    
+    header_and_implementation_actions = class_inserter.insert_class_next_to_other_class_with_whitespace_enhancement(
+        full_cmake_source, full_cmake_ast, class_name, list_item_string_path.PathAwareListItemString(reference_class_name))
+
+    full_cmake_source = _do_all_actions(list(header_and_implementation_actions), full_cmake_source)
+    return full_cmake_source
+
+def _read_cmakelists_contents(cmakelists_path):
     if not os.path.exists(cmakelists_path):
         raise CMakeClassCreatorException("{} can't be found.".format(cmakelists_path))
 
-    full_cmake_source = ""
     with open(cmakelists_path, 'r') as cmakelists_file:
-        full_cmake_source = cmakelists_file.read()
-    
+        return cmakelists_file.read()
+
+def _parse_cmakelists_contents(full_cmake_source):
     full_cmake_ast = []
     try:
         full_cmake_ast = [match[0] for match in ast.Ast().scan_all(full_cmake_source)]
@@ -69,12 +87,49 @@ def create_class(cmakelists_path, class_name, reference_class_name):
 
     if not full_cmake_ast:
         raise CMakeClassCreatorException("Unable to find any (supported) cmake statements in the given file: {}.".format(cmakelists_path))
-    
-    header_and_implementation_actions = class_inserter.insert_class_next_to_other_class_with_whitespace_enhancement(
-        full_cmake_source, full_cmake_ast, class_name, list_item_string_path.PathAwareListItemString(reference_class_name))
 
-    full_cmake_source = _do_all_actions(list(header_and_implementation_actions), full_cmake_source)
-    return full_cmake_source
+    return full_cmake_ast
+
+def insert_single_source_next_to_reference(cmakelists_path, source_item, reference_source_item):
+    full_cmake_source = _read_cmakelists_contents(cmakelists_path)
+    
+    full_cmake_ast = _parse_cmakelists_contents(full_cmake_source)
+
+    reference_source_item = _make_reference_path_aware_if_needed(reference_source_item)
+
+    inserter_with_reference = source_inserter._make_inserter_for_item_next_to_other_source(full_cmake_ast, reference_source_item)
+    try:
+        insert_action = source_inserter.insert_source_considering_existing_whitespace(inserter_with_reference.inserter, source_item, full_cmake_source)
+        return insert_action.do(full_cmake_source)
+    except source_inserter.SourceInserterException as e:
+        raise CMakeClassCreatorException(str(e))
+
+def insert_single_source_in_variable(cmakelists_path, source_item, variable):
+    full_cmake_source = _read_cmakelists_contents(cmakelists_path)
+    
+    full_cmake_ast = _parse_cmakelists_contents(full_cmake_source)
+
+    try:
+        inserter = source_inserter._make_inserter_for_variable_declaration(full_cmake_ast, variable)
+        return source_inserter.insert_source_considering_existing_whitespace(inserter, source_item, full_cmake_source).do(full_cmake_source)
+    except source_inserter.SourceInserterException as e:
+        raise CMakeClassCreatorException(str(e))
+
+def insert_single_source_in_target(cmakelists_path, source_item, target):
+    full_cmake_source = _read_cmakelists_contents(cmakelists_path)
+    
+    full_cmake_ast = _parse_cmakelists_contents(full_cmake_source)
+
+    try:
+        inserter = source_inserter._make_inserter_for_target(full_cmake_ast, target)
+        return source_inserter.insert_source_considering_existing_whitespace(inserter, source_item, full_cmake_source).do(full_cmake_source)
+    except source_inserter.SourceInserterException as e:
+        raise CMakeClassCreatorException(str(e))
+
+def _make_reference_path_aware_if_needed(reference_source_item):
+    return reference_source_item \
+        if not list_item_string_path.is_cmake_path(reference_source_item) \
+            else list_item_string_path.PathAwareListItemString(reference_source_item)
 
 def _do_all_actions(actions, full_cmake_source):
     actions.sort(reverse=True, key=lambda action: action.position)
