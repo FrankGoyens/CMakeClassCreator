@@ -12,7 +12,7 @@ class Parser(object):
         self._variable_use_terminator = Literal("}")
         self._variable_use_in_quotes_terminator = Literal('"')
         self._standalone_variable_use = "${" + self._variable_name + self._variable_use_terminator
-        self._equivalent_variable_use_in_quotes = Literal('"') + self._standalone_variable_use + NotAny(White()) + self._variable_use_in_quotes_terminator
+        self._equivalent_variable_use_in_quotes = Literal('"') + "${" + self._variable_name + "}" + NotAny(White()) + self._variable_use_in_quotes_terminator
 
         self._any_standalone_variable_use = self._standalone_variable_use | self._equivalent_variable_use_in_quotes
 
