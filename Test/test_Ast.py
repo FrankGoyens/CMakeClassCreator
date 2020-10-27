@@ -186,7 +186,7 @@ class TestAst(unittest.TestCase):
         self.assertEqual(list(result)[0].get_end_location(), 10)
 
         result = given_ast._parser._equivalent_variable_use_in_quotes.parseString('"${sources}"')
-        self.assertEqual(list(result)[0].get_end_location(), 11)
+        self.assertEqual(list(result)[0].get_end_location(), 12)
 
 
 

@@ -137,7 +137,7 @@ def _parse_variable_use_terminator(s, loc, toks):
     return VariableUseTerminator(loc+1)
 
 def _parse_variable_use_in_quotes_terminator(s, loc, toks):
-    return VariableUseTerminator(loc+2) #also consider the quote after the '}'
+    return VariableUseTerminator(loc+1)
 
 def _parse_standalone_variable_use_action(s, loc, toks):
     var_name = toks[1]
@@ -145,7 +145,9 @@ def _parse_standalone_variable_use_action(s, loc, toks):
     return VariableUseWithStartAndEndLocation(var_name, loc, terminator)
 
 def _parse_standalone_variable_use_in_quotes_action(s, loc, toks):
-    return toks[1]
+    var_name = toks[2]
+    terminator = toks[4]
+    return VariableUseWithStartAndEndLocation(var_name, loc, terminator)
 
 def _parse_variable_use_to_compose_list_item(s, loc, toks):
     return toks
