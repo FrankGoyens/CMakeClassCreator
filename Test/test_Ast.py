@@ -165,17 +165,28 @@ class TestAst(unittest.TestCase):
             ast.CMakeStringList([ast.ListItemStringWithLocation("windows_util.h", 215), ast.ListItemStringWithLocation("windows_util.c", 230)]))
         self.assertTrue(list(matches[3])[0].is_same(expected_fourth_match))
     
+    def test_list_item_string_with_terminator(self):
+        given_ast = ast.Ast()
+
+        result = given_ast._parser._string_list_item.parseString("dog.hpp")
+        self.assertEqual(list(result)[0].location, 0)
+        self.assertEqual(list(result)[0].get_end_location(), 7)
+
+        result = given_ast._parser._string_list_item.parseString('"dog.hpp"')
+        self.assertEqual(list(result)[0].location, 0)
+        self.assertEqual(list(result)[0].get_end_location(), 9)
+
     def test_variable_use_with_terminator(self):
         given_ast = ast.Ast()
 
         result = given_ast._parser._variable_use_terminator.parseString("}")
-        self.assertEqual(list(result)[0].location, 0)
+        self.assertEqual(list(result)[0].location, 1) #'location' here is not a match location but the termination location, a bit confusing I admit
 
         result = given_ast._parser._standalone_variable_use.parseString("${sources}")
-        self.assertEqual(list(result)[0].get_end_location(), 9)
+        self.assertEqual(list(result)[0].get_end_location(), 10)
 
         result = given_ast._parser._equivalent_variable_use_in_quotes.parseString('"${sources}"')
-        self.assertEqual(list(result)[0].get_end_location(), 10)
+        self.assertEqual(list(result)[0].get_end_location(), 11)
 
 
 

@@ -36,10 +36,6 @@ def _insert_class_next_to_other_class_with_inserter_enhancement(cmake_ast, class
     return (inserter_and_extension_to_action(header_inserter, header_extension), 
         inserter_and_extension_to_action(implementation_inserter, implementation_extension))
 
-def _insert_source_next_to_other_source(cmake_ast, source_name, reference_source_name, extensions):
-    inserter, extension = _make_inserter_for_item_next_to_other_source(cmake_ast, reference_source_name, extensions)
-    return inserter.insert_source(source_name + extension)
-
 def _make_inserter_for_item_next_to_other_source(cmake_ast, reference_source_name, extensions):
     for extension in extensions:
         try:
@@ -48,3 +44,4 @@ def _make_inserter_for_item_next_to_other_source(cmake_ast, reference_source_nam
             break
         except source_inserter.SourceInserterException:
             pass
+    return (None, None)

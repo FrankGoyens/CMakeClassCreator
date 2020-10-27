@@ -65,8 +65,11 @@ def create_class(cmakelists_path, class_name, reference_class_name):
     
     full_cmake_ast = _parse_cmakelists_contents(full_cmake_source)
     
-    header_and_implementation_actions = class_inserter.insert_class_next_to_other_class_with_whitespace_enhancement(
-        full_cmake_source, full_cmake_ast, class_name, list_item_string_path.PathAwareListItemString(reference_class_name))
+    try:
+        header_and_implementation_actions = class_inserter.insert_class_next_to_other_class_with_whitespace_enhancement(
+            full_cmake_source, full_cmake_ast, class_name, list_item_string_path.PathAwareListItemString(reference_class_name))
+    except class_inserter.ClassInserterException as e:
+        raise CMakeClassCreatorException(str(e))
 
     full_cmake_source = _do_all_actions(list(header_and_implementation_actions), full_cmake_source)
     return full_cmake_source
