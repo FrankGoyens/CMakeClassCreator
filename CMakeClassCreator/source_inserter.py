@@ -19,8 +19,8 @@ class InsertAction(object):
         self.content = value + self.content.lstrip()
 
     def do(self, full_cmake_source):
-        content_before = full_cmake_source[:self.position-1]
-        content_after = full_cmake_source[self.position-1:]
+        content_before = full_cmake_source[:self.position]
+        content_after = full_cmake_source[self.position:]
         return content_before + self.content + content_after
 
 class _SourceInsertTrait(ABC):
@@ -119,7 +119,7 @@ def _add_path_prefix_to_insert_action(inserter_with_reference, insert_action):
 
 def _get_position_after_last_list_item(cmake_string_list_ast):
     last_item = cmake_string_list_ast.items[-1]
-    return last_item.get_end_location() + 1
+    return last_item.get_end_location()
 
 def insert_source_item_directly_in_target(cmake_ast, source_item, cmake_target):
     """ Sets up the action to add a source file directly to the add_{library|executable} statement of a given target """
