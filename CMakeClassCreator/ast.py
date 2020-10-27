@@ -134,10 +134,10 @@ class TargetSources(object):
 ### AST components END ###
 
 def _parse_variable_use_terminator(s, loc, toks):
-    return VariableUseTerminator(loc)
+    return VariableUseTerminator(loc+1)
 
 def _parse_variable_use_in_quotes_terminator(s, loc, toks):
-    return VariableUseTerminator(loc+1) #also consider the quote after the '}'
+    return VariableUseTerminator(loc+2) #also consider the quote after the '}'
 
 def _parse_standalone_variable_use_action(s, loc, toks):
     var_name = toks[1]
