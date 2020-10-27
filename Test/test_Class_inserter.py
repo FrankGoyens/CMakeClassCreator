@@ -20,7 +20,7 @@ class TestClassInserter(unittest.TestCase):
 
         header_insert_action, impl_insert_action = class_inserter.insert_class_next_to_other_class(given_ast, "Symlink", "File")
 
-        self.assertEqual(header_insert_action.position, 62)
+        self.assertEqual(header_insert_action.position, 61)
         self.assertEqual(header_insert_action.do(given_source), ("project(TabsPls)\n\n"
             + "set(TabsPls_Headers File.hpp\n"
             + "\tDirectory.hpp Symlink.hpp\n"
@@ -32,7 +32,7 @@ class TestClassInserter(unittest.TestCase):
             + "add_executable(TabsPls ${TabsPls_Headers} ${TabsPls_Sources})\n"
             + "target_sources(TabsPls PRIVATE windows_util.h windows_util.c)"))
 
-        self.assertEqual(impl_insert_action.position, 119)
+        self.assertEqual(impl_insert_action.position, 118)
         self.assertEqual(impl_insert_action.do(given_source), ("project(TabsPls)\n\n"
             + "set(TabsPls_Headers File.hpp\n"
             + "\tDirectory.hpp\n"
