@@ -86,7 +86,7 @@ class _TargetSourcesInserter(_TargetNameTrait, __SingleCMakeListInserter):
     def get_name(self):
         return self.target_sources_ast.target_name
 
-class _InserterWithMatchedReference(_SourceInsertTrait, _ReferenceMatchProviderTrait):
+class _InserterWithMatchedReference(_SourceInsertTrait, _ReferenceMatchProviderTrait, _SingleCMakeListAstTrait):
     def __init__(self, inserter, matched_reference_ast):
         self.inserter = inserter
         self.matched_reference_ast = matched_reference_ast
@@ -98,6 +98,10 @@ class _InserterWithMatchedReference(_SourceInsertTrait, _ReferenceMatchProviderT
         insert_action = self.inserter.insert_source(source_item)
         _add_path_prefix_to_insert_action(self, insert_action)
         return insert_action
+
+    def get_cmake_list_ast(self):
+        return self.inserter.cmake_string_list
+
 
 def _add_path_prefix_to_insert_action(inserter_with_reference, insert_action):
     if not hasattr(inserter_with_reference.get_matched_reference_item(), "list_item_string"):

@@ -15,7 +15,7 @@ def insert_class_next_to_other_class(cmake_ast, class_name, reference_class_name
 
 def insert_class_next_to_other_class_with_whitespace_enhancement(full_cmake_source, cmake_ast, class_name, reference_class_name):
     def inserter_and_source_to_action_considering_whitespace(inserter_with_reference, extension):
-        return source_inserter.insert_source_considering_existing_whitespace(inserter_with_reference.inserter, class_name + extension, full_cmake_source)
+        return source_inserter.insert_source_considering_existing_whitespace(inserter_with_reference, class_name + extension, full_cmake_source)
 
     return _insert_class_next_to_other_class_with_inserter_enhancement(cmake_ast, class_name, reference_class_name, \
         inserter_and_source_to_action_considering_whitespace)
