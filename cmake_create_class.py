@@ -146,6 +146,11 @@ if __name__ == "__main__":
     function_to_call = validate_args(args)
     if function_to_call is not None:
         try:
-            print(function_to_call(args))
+            output = function_to_call(args)
+            if args.inplace:
+                with open(args.cmakelists, 'w') as output_file:
+                    output_file.write(output)
+            else:
+                print(output)
         except CMakeClassCreatorException as e:
             print(str(e), file=sys.stderr)
