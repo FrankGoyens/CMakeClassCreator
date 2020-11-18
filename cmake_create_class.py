@@ -89,7 +89,7 @@ def _parse_cmakelists_contents(full_cmake_source):
         raise CMakeClassCreatorException("Unable to parse cmake file. Here is the pyparsing exception:\n\n{}".format(str(e)))
 
     if not full_cmake_ast:
-        raise CMakeClassCreatorException("Unable to find any (supported) cmake statements in the given file: {}.".format(cmakelists_path))
+        raise CMakeClassCreatorException("Unable to find any (supported) cmake statements in the given file.")
 
     return full_cmake_ast
 
