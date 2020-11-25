@@ -21,6 +21,9 @@ def insert_class_next_to_other_class_with_whitespace_enhancement(full_cmake_sour
         inserter_and_source_to_action_considering_whitespace)
 
 def _insert_class_next_to_other_class_with_inserter_enhancement(cmake_ast, class_name, reference_class_name, inserter_and_extension_to_action):
+    """ This function is agnostic about which enhancement will be done. 
+    
+    Customize the enhancement by providing a function as argument 'inserter_and_extension_to_action' and apply the enhancement therein"""
     header_inserter, header_extension = _make_inserter_for_item_next_to_other_source(cmake_ast, reference_class_name, _header_extensions)
 
     if not header_inserter:
