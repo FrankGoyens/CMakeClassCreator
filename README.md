@@ -23,7 +23,7 @@ When you approve of the changes, run the same command again with the `-i` option
 
 `$>cmcc <cmakelists> NewClass -rc ExistingClass -i`
 
-Now the file contents of the cmakelists is updated. Your new class has been inserted!
+Now the file contents of the cmakelists are updated. Your new class has been inserted!
 
 ## Adding a single file using a reference file
 It is also possible to add a single file using the `-s` option.
@@ -38,4 +38,4 @@ When you approve of the changes, run the same command again with the `-i` option
 
 `$>cmcc <cmakelists> New.hpp -s -rc Existing.hpp -i`
 
-Now the file contents of the cmakelists is updated. Your new file has been inserted!
+Now the file contents of the cmakelists are updated. Your new file has been inserted!
