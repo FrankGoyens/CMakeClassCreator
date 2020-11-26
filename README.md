@@ -13,15 +13,15 @@ There are (too many) ways to specify source files for CMake. Usually the sources
 So, you want to insert a new class, CMake Class Creator somehow must know how to insert it. The easiest way is to define a reference class. 
 
 ## Adding a class using a reference class
-Suppose you want to insert a new class 'NewClass' next to 'OldClass':
+Suppose you want to insert a new class 'NewClass' next to 'ExistingClass':
 
-`$>cmcc <cmakelists> NewClass -rc OldClass`
+`$>cmcc <cmakelists> NewClass -rc ExistingClass`
 
 Executing this command will dump the updated cmakelists content to stdout, here you can check if the result is what you expect it to be.
 
 When you approve of the changes, run the same command again with the `-i` option:
 
-`$>cmcc <cmakelists> NewClass -rc OldClass -i`
+`$>cmcc <cmakelists> NewClass -rc ExistingClass -i`
 
 Now the file contents of the cmakelists is updated. Your new class has been inserted!
 
