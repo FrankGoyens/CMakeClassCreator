@@ -109,7 +109,66 @@ class TestCMakeCreateClass(unittest.TestCase):
         given_args.name = "file.cpp"
         given_args.reference_class = "source\\dir.cpp"
 
-        self.assertRaises(cmake_create_class.CMakeClassCreatorException, cmake_create_class.validate_args, given_args)        
+        self.assertRaises(cmake_create_class.CMakeClassCreatorException, cmake_create_class.validate_args, given_args)
+
+class TestCMakeCreateClassSingleFileMode(unittest.TestCase):
+    def test_insert_single_source_next_to_reference_in_full_cmake_source(self):
+        given_full_source = \
+            """
+            project(TabsPlsTest)
+
+            set(TabsPlsTest_Sources
+                Test1.cpp
+                Test2.cpp
+            )
+
+            add_executable(TabsPlsTest ${TabsPlsTest_Sources})
+            """
+        result_cmake_source = cmake_create_class._insert_single_source_next_to_reference_in_full_cmake_source(given_full_source, "Test3.cpp", "Test2.cpp")
+
+        expected_cmake_source = \
+            """
+            project(TabsPlsTest)
+
+            set(TabsPlsTest_Sources
+                Test1.cpp
+                Test2.cpp
+                Test3.cpp
+            )
+
+            add_executable(TabsPlsTest ${TabsPlsTest_Sources})
+            """
+        
+        self.assertEqual(expected_cmake_source, result_cmake_source)
+
+    def test_insert_single_source_next_to_reference_in_full_cmake_source_path_aware(self):
+        given_full_source = \
+            """
+            project(TabsPlsTest)
+
+            set(TabsPlsTest_Sources
+                Source/Test1.cpp
+                Source/Test2.cpp
+            )
+
+            add_executable(TabsPlsTest ${TabsPlsTest_Sources})
+            """
+        result_cmake_source = cmake_create_class._insert_single_source_next_to_reference_in_full_cmake_source(given_full_source, "Test3.cpp", "Test2.cpp")
+
+        expected_cmake_source = \
+            """
+            project(TabsPlsTest)
+
+            set(TabsPlsTest_Sources
+                Source/Test1.cpp
+                Source/Test2.cpp
+                Source/Test3.cpp
+            )
+
+            add_executable(TabsPlsTest ${TabsPlsTest_Sources})
+            """
+        
+        self.assertEqual(expected_cmake_source, result_cmake_source)
 
 if __name__ == "__main__":
     unittest.main()
