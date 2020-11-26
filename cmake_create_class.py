@@ -96,13 +96,17 @@ def _parse_cmakelists_contents(full_cmake_source):
 def insert_single_source_next_to_reference(cmakelists_path, source_item, reference_source_item):
     full_cmake_source = _read_cmakelists_contents(cmakelists_path)
     
+    _insert_single_source_next_to_reference_in_full_cmake_source(full_cmake_source, source_item, reference_source_item)
+
+def _insert_single_source_next_to_reference_in_full_cmake_source(full_cmake_source, source_item, reference_source_item):
     full_cmake_ast = _parse_cmakelists_contents(full_cmake_source)
 
     reference_source_item = _make_reference_path_aware_if_needed(reference_source_item)
 
-    inserter_with_reference = source_inserter._make_inserter_for_item_next_to_other_source(full_cmake_ast, reference_source_item)
+    inserter_with_reference = source_inserter._make_inserter_for_item_next_to_other_source(full_cmake_ast, 
+        list_item_string_path.PathAwareListItemString(reference_source_item))
     try:
-        insert_action = source_inserter.insert_source_considering_existing_whitespace(inserter_with_reference.inserter, source_item, full_cmake_source)
+        insert_action = source_inserter.insert_source_considering_existing_whitespace(inserter_with_reference, source_item, full_cmake_source)
         return insert_action.do(full_cmake_source)
     except source_inserter.SourceInserterException as e:
         raise CMakeClassCreatorException(str(e))
