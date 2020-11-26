@@ -24,3 +24,18 @@ When you approve of the changes, run the same command again with the `-i` option
 `$>cmcc <cmakelists> NewClass -rc OldClass -i`
 
 Now the file contents of the cmakelists is updated. Your new class has been inserted!
+
+## Adding a single file using a reference file
+It is also possible to add a single file using the `-s` option.
+
+When you want to make a header only class for instance:
+
+`$>cmcc <cmakelists> New.hpp -s -rc Existing.hpp`
+
+**Note** that since we're dealing with single files, specifying the complete filename including the extension is required. But it is **not** required to specify the full path. In this example, `Existing.hpp` may be defined as `<path>/Existing.hpp` or just `Existing.hpp`. In case there is a path prefix, this will also be used for `New.hpp`.
+
+When you approve of the changes, run the same command again with the `-i` option:
+
+`$>cmcc <cmakelists> New.hpp -s -rc Existing.hpp -i`
+
+Now the file contents of the cmakelists is updated. Your new file has been inserted!
