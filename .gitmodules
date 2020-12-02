@@ -1,3 +1,0 @@
-[submodule "pyparsing"]
-	path = pyparsing
-	url = https://github.com/pyparsing/pyparsing.git
