@@ -143,8 +143,8 @@ def _do_all_actions(actions, full_cmake_source):
     for action in actions:
         full_cmake_source = action.do(full_cmake_source)
     return full_cmake_source
-    
-if __name__ == "__main__":
+
+def main():
     args = create_arg_parser().parse_args()
 
     function_to_call = validate_args(args)
@@ -158,3 +158,6 @@ if __name__ == "__main__":
                 print(output)
         except CMakeClassCreatorException as e:
             print(str(e), file=sys.stderr)
+            
+if __name__ == "__main__":
+    main()
