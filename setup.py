@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os
-from distutils.core import setup
+import setuptools
 
 install_requires = []
 with open("requirements.txt", 'r') as requirements_file:
@@ -11,7 +11,7 @@ long_description = ""
 with open("README.md", 'r') as long_description_file:
       long_description = long_description_file.read()
 
-setup(name='CMake-Class-Creator-FrankG',
+setuptools.setup(name='CMake-Class-Creator-FrankG',
       version='0.1.0',
       description='A script that inserts a new c++ class in an existing CMake configuration.',
       author='Frank Goyens',
