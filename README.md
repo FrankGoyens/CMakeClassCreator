@@ -5,7 +5,11 @@ A class is composed of a header file and a source file. That's two files! And so
 Adding classes and files can be tedious when using CMake. This project automates adding classes or single files to a cmake configuration.
 
 ## How to install
-**To be added, but assume that CMake Class Creator can be invoked with 'cmcc' for the further readme content**
+The recommended way is to use pip:
+`pip install CMake-Class-Creator`
+
+Optionally you can alias this command: `alias cmcc=cmake_create_class`
+
 
 ## Easy insertion using references
 There are (too many) ways to specify source files for CMake. Usually the sources are list variables defined with the `set` keyword. Sometimes the sources are defined directly in `add_library` or `add_executable`. In modern CMake there is also a `target_sources` statement. 
