@@ -5,8 +5,9 @@ A class is composed of a header file and a source file. That's two files! And so
 Adding classes and files can be tedious when using CMake. This project automates adding classes or single files to a cmake configuration.
 
 ## How to install
-The recommended way is to use pip:
-`pip install CMake-Class-Creator`
+The recommended way is to use pip: `pip install CMake-Class-Creator`
+
+**Please note** that this module depends on a release candidate version op pyparsing, 3.0.0b1. So it is also recommended to install this in a virtual environment.
 
 Optionally you can alias this command: `alias cmcc=cmake_create_class`
 
