@@ -12,11 +12,12 @@ with open("README.md", 'r') as long_description_file:
       long_description = long_description_file.read()
 
 setup(name='CMake-Class-Creator',
-      version='0.1.4',
+      version='0.1.5',
       description='A script that inserts a new c++ class in an existing CMake configuration.',
       author='Frank Goyens',
       url='https://github.com/FrankGoyens/CMakeClassCreator',
       packages=find_packages(),
+      py_modules=["cmake_create_class"],
       install_requires=install_requires,
       long_description=long_description,
       long_description_content_type="text/markdown",
