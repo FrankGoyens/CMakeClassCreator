@@ -1,5 +1,4 @@
 from pyparsing import *
-import copy
 
 class Parser(object):
     def __init__(self):
@@ -16,7 +15,7 @@ class Parser(object):
 
         self._any_standalone_variable_use = self._standalone_variable_use | self._equivalent_variable_use_in_quotes
 
-        self._compositional_variable_use = copy.deepcopy(self._any_standalone_variable_use)
+        self._compositional_variable_use = self._any_standalone_variable_use.copy()
         #this is not used to parse into anything meaningful, so they are combined into a single token. This makes this easily managed
         printables_except_rpar = printables.replace(')', '')
         self._variable_use_to_compose_list_item = Combine(dblQuotedString + self._compositional_variable_use) | \
